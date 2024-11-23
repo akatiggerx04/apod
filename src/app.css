@@ -1,0 +1,15 @@
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+
+@import url("https://fonts.googleapis.com/css2?family=Doto:wght@100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+
+html {
+    font-family: "Inter", sans-serif;
+    background-color: black;
+    color: white;
+}
+
+.doto {
+    font-family: "Doto", sans-serif;
+}

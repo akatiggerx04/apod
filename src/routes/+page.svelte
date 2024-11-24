@@ -414,9 +414,7 @@
                     xmlns="http://www.w3.org/2000/svg"
                     width="1.4em"
                     height="1.4em"
-                    class="{apods[currentIndex]?.hdurl
-                        ? 'text-neutral-400 hover:text-white'
-                        : 'text-neutral-600'} duration-300"
+                    class="text-neutral-400 hover:text-white"
                     viewBox="0 0 256 256"
                 >
                     <rect width="256" height="256" fill="none" />

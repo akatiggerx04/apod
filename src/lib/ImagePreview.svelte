@@ -2,14 +2,14 @@
     import { fade } from "svelte/transition";
     import { spring } from "svelte/motion";
 
-    export let open, image;
+    let { open = $bindable(), image = $bindable() } = $props();
 
     let scale = spring(1);
     let panX = spring(0);
     let panY = spring(0);
-    let startX,
-        startY,
-        isPanning = false;
+    let startX = $state(0);
+    let startY = $state(0);
+    let isPanning = $state(false);
 
     function handleWheel(event) {
         event.preventDefault();

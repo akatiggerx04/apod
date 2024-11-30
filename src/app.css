@@ -4,6 +4,10 @@
 
 @import url("https://fonts.googleapis.com/css2?family=Doto:wght@100..900&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 
+:root {
+    --swiper-preloader-color: #ffffff;
+}
+
 html {
     font-family: "Inter", sans-serif;
     background-color: black;

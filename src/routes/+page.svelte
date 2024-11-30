@@ -7,6 +7,7 @@
     import { fade } from "svelte/transition";
     import { PUBLIC_API_KEY } from "$env/static/public";
     import ImagePreview from "$lib/ImagePreview.svelte";
+    import AboutPopup from "$lib/AboutPopup.svelte";
 
     let loading = $state(true);
     let apods = $state([]);
@@ -107,6 +108,22 @@
         loadingMore = false;
     }
 
+    async function goNext() {
+        if (currentIndex < apods.length - 1) {
+            currentIndex++;
+        }
+
+        if (currentIndex >= apods.length - 10) {
+            loadMoreApods();
+        }
+    }
+
+    function goPrev() {
+        if (currentIndex > 0) {
+            currentIndex--;
+        }
+    }
+
     onMount(async () => {
         loading = true;
         loadingMore = true;
@@ -152,47 +169,41 @@
     </title>
     <meta
         name="description"
-        content="Explore the cosmos through NASA's Astronomy Picture of the Day - featuring stunning images and explanations of our universe."
+        content="An unofficial client for the Astronomy Picture of The Day (APOD) by NASA. Everyday a space/science related picture is featured, accompanied by an explanation."
     />
     <meta
         name="keywords"
-        content="NASA, astronomy, space, APOD, cosmos, universe, science, astrophotography"
+        content="NASA, astronomy, space, APOD, cosmos, universe, science, astrophotography, picture, daily"
     />
-    <meta
-        property="og:title"
-        content="Astronomy Picture of The Day{apods[currentIndex]
-            ? ': ' + apods[currentIndex].title
-            : ''}"
-    />
+    <meta property="title" content="Astronomy Picture of The Day" />
+    <meta property="og:title" content="Astronomy Picture of The Day" />
     <meta
         property="og:description"
-        content={apods[currentIndex]?.explanation?.substring(0, 160) ??
-            "Explore NASA's Astronomy Picture of the Day - featuring stunning images and explanations of our universe."}
+        content="An unofficial client for the Astronomy Picture of The Day (APOD) by NASA. Everyday a space/science related picture is featured, accompanied by an explanation."
     />
+    <meta property="og:image" content="/assets/images/social.webp" />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta
         name="twitter:title"
-        content="Astronomy Picture of The Day {apods[currentIndex]
-            ? ': ' + apods[currentIndex].title
-            : ''}"
+        content="Astronomy Picture of The Day (by @akatiggerx04)"
     />
     <meta
         name="twitter:description"
-        content={apods[currentIndex]?.explanation?.substring(0, 160) ??
-            "Explore NASA's Astronomy Picture of the Day - featuring stunning images and explanations of our universe."}
+        content="An unofficial client for the Astronomy Picture of The Day (APOD) by NASA. Everyday a space/science related picture is featured, accompanied by an explanation."
     />
     <script src="/assets/js/swiper.min.js"></script>
 </svelte:head>
 
+<!-- Page Title -->
 <div
-    class="top-0 left-0 bg-black/60 xl:bg-transparent fixed flex justify-center items-center flex-col text-center w-full pt-8 pb-2 mxl:pb-0 backdrop-blur-lg xl:backdrop-blur-none z-30"
+    class="top-0 left-0 static xl:fixed flex justify-center items-center flex-col text-center w-full pt-6 xl:pt-8 pb-4 mxl:pb-0 z-30"
 >
-    <h1 class="doto text-xl font-semibold">
-        🪐 Astronomy Picture <br class="block xl:hidden" />Of The Day
+    <h1 class="doto xl:text-xl text-lg font-semibold mx-4 drop-shadow-lg">
+        🪐 Astronomy Picture Of The Day
     </h1>
     {#if apods?.length && apods[currentIndex].date}
-        <p class="doto">
+        <p class="doto drop-shadow-lg">
             - {new Date(apods[currentIndex].date).toLocaleDateString("en-US", {
                 month: "long",
                 day: "numeric",
@@ -201,9 +212,11 @@
         </p>
     {/if}
 </div>
+<!-- End Page Title -->
 
+<!-- Background Image -->
 <div
-    class="w-screen h-screen fixed top-0 left-0 bg-cover bg-no-repeat bg-center blur-xl opacity-10 transition-all duration-500"
+    class="w-screen h-screen fixed -z-10 top-0 left-0 bg-cover bg-no-repeat bg-center blur-xl opacity-10 transition-all duration-500"
     style="background-image: url('{error.error || loading
         ? '/assets/images/default_jwst.webp'
         : apods[currentIndex]?.media_type == 'image'
@@ -212,6 +225,7 @@
             ? getThumbnail(apods[currentIndex]?.url)
             : '/assets/images/vid_thumb.webp'}');"
 ></div>
+<!-- End Background Image -->
 
 {#if loading && error.error == false}
     <section class="flex justify-center items-center flex-col h-screen w-full">
@@ -236,7 +250,9 @@
         </noscript>
     </section>
 {:else if error.error == true}
-    <section class="flex justify-center items-center flex-col h-screen w-full">
+    <section
+        class="flex justify-center items-center flex-col mt-12 xl:mt-0 xl:h-screen w-full px-12 xl:px-4"
+    >
         <div class="space-y-4">
             <p class="text-2xl font-semibold">Houston, We Have a Problem! 🚀</p>
             <p class="text-neutral-400">
@@ -254,7 +270,7 @@
     </section>
 {:else if apods}
     {#if loadingMore}
-        <div class="fixed left-5 top-5 xl:z-10 z-30">
+        <div class="xl:block hidden fixed left-5 top-5 xl:z-10 z-30">
             <svg
                 xmlns="http://www.w3.org/2000/svg"
                 width="1.3em"
@@ -269,12 +285,135 @@
         </div>
     {/if}
 
-    <section
-        transition:fade
-        class="grid xl:grid-cols-2 gap-y-8 w-full mt-28 mb-12 xl:my-0 z-10"
-    >
+    <section transition:fade class="grid xl:grid-cols-2 gap-y-4 w-full z-20">
+        <!-- Mobile Section -->
+        <section class="block xl:hidden">
+            <button
+                aria-label="Preview in HD"
+                class="w-full aspect-1 md:aspect-2"
+                onclick={() => {
+                    if (
+                        apods[currentIndex]?.media_type == "image" &&
+                        apods[currentIndex]?.hdurl
+                    ) {
+                        image = apods[currentIndex]?.hdurl;
+                        open = true;
+                    }
+                }}
+            >
+                {#if apods[currentIndex]?.media_type == "image"}
+                    <div
+                        class="w-full h-full bg-cover bg-no-repeat bg-center"
+                        style="background-image: url('{apods[currentIndex]
+                            ?.url}');"
+                    ></div>
+                {:else if apods[currentIndex]?.media_type == "video"}
+                    <div
+                        class="w-full h-full bg-cover bg-no-repeat bg-center flex justify-center items-center mb-[6px]"
+                        style="background-image: url('{getThumbnail(
+                            apods[currentIndex]?.url,
+                        )}');"
+                    >
+                        <a href={apods[currentIndex]?.url} target="_blank">
+                            <div
+                                class="bg-white rounded-xl text-black px-4 py-2 flex gap-2 items-center"
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="1.3em"
+                                    height="1.3em"
+                                    viewBox="0 0 24 24"
+                                    ><rect
+                                        width="24"
+                                        height="24"
+                                        fill="none"
+                                    /><path
+                                        fill="currentColor"
+                                        stroke="currentColor"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                        stroke-width="1.5"
+                                        d="M6.906 4.537A.6.6 0 0 0 6 5.053v13.894a.6.6 0 0 0 .906.516l11.723-6.947a.6.6 0 0 0 0-1.032z"
+                                    />
+                                </svg>
+                                Play Video
+                            </div>
+                        </a>
+                    </div>
+                {:else}
+                    <div
+                        class="w-full h-full flex justify-center items-center mb-[6px]"
+                    >
+                        <p class="doto">Unknown Media Type</p>
+                    </div>
+                {/if}
+            </button>
+
+            <!-- Mobile Navigation -->
+            <div
+                class="grid grid-cols-3 justify-between items-center gap-4 p-4 xl:hidden h-14"
+            >
+                <div>
+                    {#if apods[currentIndex - 1]}
+                        <button
+                            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm"
+                            disabled={currentIndex === 0}
+                            onclick={goPrev}
+                        >
+                            ←
+                            {new Date(
+                                apods[currentIndex - 1].date,
+                            ).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                            })}
+                        </button>
+                    {/if}
+                </div>
+
+                <div class="flex justify-center items-center">
+                    {#if loadingMore}
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="1.3em"
+                            height="1.3em"
+                            class="animate-spin text-neutral-300"
+                            viewBox="0 0 1024 1024"
+                            ><rect
+                                width="1024"
+                                height="1024"
+                                fill="none"
+                            /><path
+                                fill="currentColor"
+                                d="M512 64a32 32 0 0 1 32 32v192a32 32 0 0 1-64 0V96a32 32 0 0 1 32-32m0 640a32 32 0 0 1 32 32v192a32 32 0 1 1-64 0V736a32 32 0 0 1 32-32m448-192a32 32 0 0 1-32 32H736a32 32 0 1 1 0-64h192a32 32 0 0 1 32 32m-640 0a32 32 0 0 1-32 32H96a32 32 0 0 1 0-64h192a32 32 0 0 1 32 32M195.2 195.2a32 32 0 0 1 45.248 0L376.32 331.008a32 32 0 0 1-45.248 45.248L195.2 240.448a32 32 0 0 1 0-45.248m452.544 452.544a32 32 0 0 1 45.248 0L828.8 783.552a32 32 0 0 1-45.248 45.248L647.744 692.992a32 32 0 0 1 0-45.248M828.8 195.264a32 32 0 0 1 0 45.184L692.992 376.32a32 32 0 0 1-45.248-45.248l135.808-135.808a32 32 0 0 1 45.248 0m-452.544 452.48a32 32 0 0 1 0 45.248L240.448 828.8a32 32 0 0 1-45.248-45.248l135.808-135.808a32 32 0 0 1 45.248 0"
+                            />
+                        </svg>
+                    {/if}
+                </div>
+
+                <div class="justify-end flex items-center">
+                    {#if apods[currentIndex + 1]}
+                        <button
+                            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm"
+                            disabled={currentIndex === apods.length - 1}
+                            onclick={goNext}
+                        >
+                            {new Date(
+                                apods[currentIndex + 1].date,
+                            ).toLocaleDateString("en-US", {
+                                month: "short",
+                                day: "numeric",
+                            })}
+                            →
+                        </button>
+                    {/if}
+                </div>
+            </div>
+        </section>
+
+        <!-- Desktop Section -->
         <div
-            class="flex justify-center items-center h-auto xl:h-[100vh] overflow-x-clip xl:[mask-image:linear-gradient(to_left,transparent,black_20%)]"
+            class="hidden xl:flex justify-center items-center h-auto xl:h-[100vh] overflow-x-clip xl:[mask-image:linear-gradient(to_left,transparent,black_20%)]"
         >
             <swiper-container
                 class="apodSwiper max-w-[80vw] xl:max-w-[35vw] pt-8 select-none"
@@ -284,14 +423,16 @@
             >
                 {#each apods as apod}
                     <swiper-slide
+                        lazy={apod.media_type == "image" ? "true" : "false"}
                         class="min-w-full aspect-1 bg-black bg-cover bg-no-repeat rounded-3xl transition-none transform-none xl:transform-gpu xl:transition-all duration-500"
                         style="height: 60vh !important;"
                     >
                         {#if apod.media_type == "image"}
                             <img
                                 src={apod.url}
+                                loading="lazy"
                                 alt="APOD"
-                                class="w-full h-full object-cover bg-neutral-400"
+                                class="w-full h-full object-cover bg-black"
                             />
                         {:else if apod.media_type == "video"}
                             <div
@@ -339,7 +480,7 @@
             </swiper-container>
         </div>
         <div
-            class="z-10 flex xl:items-start xl:h-[100vh] flex-col text-start justify-start xl:justify-center mb-6 xl:mb-0 xl:pr-24 pt-4 xl:pt-8 px-6 xl:px-0 select-text"
+            class="z-10 flex xl:items-start xl:h-[100vh] flex-col text-start justify-start xl:justify-center pb-14 xl:pb-0 xl:pr-24 pt-0 xl:pt-8 px-6 xl:px-0 select-text"
         >
             <p class="text-3xl font-semibold mb-2">
                 {apods[currentIndex]?.title}
@@ -459,73 +600,7 @@
     <div
         class="z-50 fixed top-0 left-0 w-full min-h-screen justify-center items-center flex"
     >
-        <section
-            class="p-3 bg-black/70 backdrop-blur-xl rounded-xl min-w-[30vw] xl:max-w-[650px] mx-8 drop-shadow-xl"
-        >
-            <div class="flex justify-between items-center gap-2">
-                <p class="doto">🪐 About This Website</p>
-                <button
-                    aria-label="Close"
-                    data-tippy-content="Close"
-                    onclick={() => {
-                        viewAbout = !viewAbout;
-                    }}
-                >
-                    <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                    >
-                        <path d="M18 6 6 18" /><path d="m6 6 12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <div class="flex items-center gap-2 mt-4">
-                <img
-                    src="https://avatars.githubusercontent.com/akatiggerx04"
-                    class="rounded-full w-10 aspect-1 bg-neutral-300"
-                    alt="TGX Avatar"
-                />
-                <div>
-                    <p class="font-semibold">akatiggerx04</p>
-                    <p class="text-xs text-neutral-300">Space Enthusiast</p>
-                </div>
-            </div>
-
-            <p class="text-sm text-neutral-300 mt-4">
-                This is an unofficial client for NASA's Astronomy Picture of The
-                Day (APOD) service, which utilizes NASA's APOD API to display
-                daily astronomical images and information. The original APOD
-                website is maintained by NASA and Michigan Technological
-                University at apod.nasa.gov/apod. This website acts as an
-                alternative interface while giving full credit and attribution
-                to the original APOD service and its contributors.
-            </p>
-
-            <hr class="my-3 rounded border-neutral-500 opacity-40" />
-
-            <div class="flex flex-wrap items-center gap-4 text-sm">
-                <a href="mailto:apod@akatgx.link" target="_blank">
-                    <p class="font-medium">Contact</p>
-                </a>
-                <a href="https://github.com/akatiggerx04/apod" target="_blank">
-                    <p class="font-medium">Contribute</p>
-                </a>
-                <a href="https://apod.nasa.gov/apod" target="_blank">
-                    <p class="font-medium">APOD</p>
-                </a>
-                <a href="https://api.nasa.gov" target="_blank">
-                    <p class="font-medium">NASA's APIs</p>
-                </a>
-            </div>
-        </section>
+        <AboutPopup bind:viewAbout />
     </div>
 
     <div class="fixed bottom-2 left-2">

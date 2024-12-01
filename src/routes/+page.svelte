@@ -1,5 +1,4 @@
 <script>
-    // @ts-nocheck
     import { onMount } from "svelte";
     import { register } from "swiper/element/bundle";
     import tippy from "tippy.js";
@@ -10,40 +9,54 @@
     import AboutPopup from "$lib/AboutPopup.svelte";
     import Lens from "$lib/Lens.svelte";
 
+    // Is the page loading variable
     let loading = $state(true);
+
+    // Where APODS are stored
+    /** @type {any[]} */
     let apods = $state([]);
+
+    // Current APOD the user is looking at
     let currentIndex = $state(0);
+
+    // Load one month worth of content by default
     let monthsToLoad = $state(1);
+
+    // This is the small spinner; indicates wether more apods are loading in the backgroud.
     let loadingMore = $state(false);
+
+    // Store error message here
     let error = $state({
         error: false,
         msg: "",
     });
 
+    // Lens effect when hovering over APOD (Desktop only)
     let lensEffect = $state(false);
 
+    // About Popup
     let viewAbout = $state(false);
     let apiCallsLeft = $state(-1);
 
+    // Preview in HD popup
     let open = $state(false);
     let image = $state("");
 
+    // Toggle zoom lens effect for desktop
     async function toggleLensEffect() {
         if (apods.length == 1 && loadingMore == true) {
             return;
         }
 
         lensEffect = !lensEffect;
-        localStorage.setItem("apod-lens-effect", lensEffect);
+        localStorage.setItem("apod-lens-effect", lensEffect.toString());
     }
 
-    async function requestMonthlyApods(startMonth, endMonth) {
-        const endDate = new Date();
-        endDate.setMonth(endDate.getMonth() - startMonth);
-
-        const startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - endMonth);
-
+    // Fetch APOD from API
+    async function requestApods(
+        /** @type {Date} */ startDate,
+        /** @type {Date} */ endDate,
+    ) {
         try {
             const rawResponse = await fetch(
                 `https://api.nasa.gov/planetary/apod?start_date=${startDate.toISOString().split("T")[0]}&end_date=${endDate.toISOString().split("T")[0]}&api_key=${PUBLIC_API_KEY}`,
@@ -57,18 +70,20 @@
             );
 
             apiCallsLeft = parseInt(
-                rawResponse.headers.get("x-ratelimit-remaining"),
+                rawResponse.headers.get("x-ratelimit-remaining") ?? "0",
             );
             const jsonResponse = await rawResponse.json();
             return jsonResponse.reverse();
         } catch (e) {
             error.error = true;
-            error.msg = e.message;
+            error.msg =
+                e instanceof Error ? e.message : "An unknown error occurred";
             return [];
         }
     }
 
-    function getThumbnail(url) {
+    // Get thumbnail for YouTube videos
+    function getThumbnail(/** @type {string} */ url) {
         const youtubeRegex =
             /(?:youtube(?:-nocookie)?\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
         const match = url.match(youtubeRegex);
@@ -81,6 +96,7 @@
         return "/assets/images/vid_thumb.webp";
     }
 
+    // Load another month of images (For Infinite Loading)
     async function loadMoreApods() {
         if (loadingMore) return;
 
@@ -94,32 +110,15 @@
         const startDate = new Date(oldestDate);
         startDate.setMonth(startDate.getMonth() - 1);
 
-        let rawResponse;
-
-        try {
-            rawResponse = await fetch(
-                `https://api.nasa.gov/planetary/apod?start_date=${startDate.toISOString().split("T")[0]}&end_date=${endDate.toISOString().split("T")[0]}&api_key=${PUBLIC_API_KEY}`,
-                {
-                    method: "GET",
-                },
-            );
-        } catch (e) {
-            error.error = true;
-            error.msg = e.message;
-            return [];
-        }
-
-        apiCallsLeft = parseInt(
-            rawResponse.headers.get("x-ratelimit-remaining"),
-        );
-        const newApods = await rawResponse.json();
-        apods = [...apods, ...newApods.reverse()];
+        const newApods = await requestApods(startDate, endDate);
+        apods = [...apods, ...newApods];
         if (apods.length > 0) {
             localStorage.setItem("latestApod", JSON.stringify(apods[0]));
         }
         loadingMore = false;
     }
 
+    // Navigation functions (For Mobile)
     async function goNext() {
         if (currentIndex < apods.length - 1) {
             currentIndex++;
@@ -140,13 +139,18 @@
         loading = true;
         loadingMore = true;
 
+        // Check for cached data
         const cached = localStorage.getItem("latestApod");
         if (cached) {
             apods = [JSON.parse(cached)];
             loading = false;
         }
 
-        const freshApods = await requestMonthlyApods(0, monthsToLoad);
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setMonth(startDate.getMonth() - monthsToLoad);
+
+        const freshApods = await requestApods(startDate, endDate);
         apods = freshApods;
         if (freshApods.length > 0) {
             localStorage.setItem("latestApod", JSON.stringify(freshApods[0]));
@@ -161,11 +165,13 @@
 
         register();
 
+        // Setup swiper and tooltips
         setTimeout(() => {
             const swiperEl = document.querySelector("swiper-container");
             if (swiperEl) {
                 swiperEl.addEventListener("swiperslidechange", (e) => {
-                    currentIndex = e?.detail[0]?.activeIndex ?? 0;
+                    currentIndex =
+                        /** @type {any} */ (e)?.detail?.[0]?.activeIndex ?? 0;
 
                     if (currentIndex >= apods.length - 10) {
                         loadMoreApods();
@@ -301,245 +307,62 @@
         </div>
     {/if}
 
-    <section transition:fade class="grid xl:grid-cols-2 gap-y-4 w-full z-20">
-        <!-- Mobile Section -->
-        <section class="block xl:hidden">
-            <button
-                aria-label="Preview in HD"
-                class="w-full aspect-1 md:aspect-2"
-                onclick={() => {
-                    if (
-                        apods[currentIndex]?.media_type == "image" &&
-                        apods[currentIndex]?.hdurl
-                    ) {
-                        image = apods[currentIndex]?.hdurl;
-                        open = true;
-                    }
-                }}
-            >
-                {#if apods[currentIndex]?.media_type == "image"}
-                    <div
-                        class="w-full h-full bg-cover bg-center bg-no-repeat relative"
-                        style="background-image: url('{apods[currentIndex]
-                            ?.url}');"
-                    >
-                        {#await new Promise((resolve) => {
-                            const img = new Image();
-                            img.onload = () => resolve(true);
-                            img.src = apods[currentIndex]?.url;
-                        })}
-                            <div
-                                transition:fade={{ duration: 600 }}
-                                class="absolute inset-0 flex items-center justify-center"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    class="animate-spin w-12 h-12"
-                                    viewBox="0 0 24 24"
-                                    ><path
-                                        fill="currentColor"
-                                        d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8"
-                                    /></svg
-                                >
-                            </div>
-                        {/await}
-                    </div>
-                {:else if apods[currentIndex]?.media_type == "video"}
-                    <div
-                        class="w-full h-full bg-cover bg-no-repeat bg-center flex justify-center items-center mb-[6px]"
-                        style="background-image: url('{getThumbnail(
-                            apods[currentIndex]?.url,
-                        )}');"
-                    >
-                        <a href={apods[currentIndex]?.url} target="_blank">
-                            <div
-                                class="bg-white rounded-xl text-black px-4 py-2 flex gap-2 items-center"
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="1.3em"
-                                    height="1.3em"
-                                    viewBox="0 0 24 24"
-                                    ><rect
-                                        width="24"
-                                        height="24"
-                                        fill="none"
-                                    /><path
-                                        fill="currentColor"
-                                        stroke="currentColor"
-                                        stroke-linecap="round"
-                                        stroke-linejoin="round"
-                                        stroke-width="1.5"
-                                        d="M6.906 4.537A.6.6 0 0 0 6 5.053v13.894a.6.6 0 0 0 .906.516l11.723-6.947a.6.6 0 0 0 0-1.032z"
-                                    />
-                                </svg>
-                                Play Video
-                            </div>
-                        </a>
-                    </div>
-                {:else}
-                    <div
-                        class="w-full h-full flex justify-center items-center mb-[6px]"
-                    >
-                        <p class="doto">Unknown Media Type</p>
-                    </div>
-                {/if}
-            </button>
-
-            <!-- Mobile Navigation -->
-            <div
-                class="grid grid-cols-3 justify-between items-center gap-4 p-4 xl:hidden h-14"
-            >
-                <div>
-                    {#if apods[currentIndex - 1]}
-                        <button
-                            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center justify-center"
-                            disabled={currentIndex === 0}
-                            onclick={goPrev}
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                class="-ml-2"
-                                viewBox="0 0 24 24"
-                            >
-                                <g fill="none" fill-rule="evenodd">
-                                    <path
-                                        d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
-                                    />
-                                    <path
-                                        fill="currentColor"
-                                        d="M8.293 12.707a1 1 0 0 1 0-1.414l5.657-5.657a1 1 0 1 1 1.414 1.414L10.414 12l4.95 4.95a1 1 0 0 1-1.414 1.414z"
-                                    />
-                                </g>
-                            </svg>
-                            {new Date(
-                                apods[currentIndex - 1].date,
-                            ).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                            })}
-                        </button>
-                    {:else}
-                        <button
-                            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center justify-center disabled:text-neutral-400"
-                            disabled={currentIndex === 0}
-                        >
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                class="-ml-2"
-                                viewBox="0 0 24 24"
-                            >
-                                <g fill="none" fill-rule="evenodd">
-                                    <path
-                                        d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
-                                    />
-                                    <path
-                                        fill="currentColor"
-                                        d="M8.293 12.707a1 1 0 0 1 0-1.414l5.657-5.657a1 1 0 1 1 1.414 1.414L10.414 12l4.95 4.95a1 1 0 0 1-1.414 1.414z"
-                                    />
-                                </g>
-                            </svg>
-                            Tomorrow
-                        </button>
-                    {/if}
-                </div>
-
-                <div class="flex justify-center items-center">
-                    {#if loadingMore}
-                        <svg
-                            xmlns="http://www.w3.org/2000/svg"
-                            width="1.3em"
-                            height="1.3em"
-                            class="animate-spin text-neutral-300"
-                            viewBox="0 0 1024 1024"
-                            ><rect
-                                width="1024"
-                                height="1024"
-                                fill="none"
-                            /><path
-                                fill="currentColor"
-                                d="M512 64a32 32 0 0 1 32 32v192a32 32 0 0 1-64 0V96a32 32 0 0 1 32-32m0 640a32 32 0 0 1 32 32v192a32 32 0 1 1-64 0V736a32 32 0 0 1 32-32m448-192a32 32 0 0 1-32 32H736a32 32 0 1 1 0-64h192a32 32 0 0 1 32 32m-640 0a32 32 0 0 1-32 32H96a32 32 0 0 1 0-64h192a32 32 0 0 1 32 32M195.2 195.2a32 32 0 0 1 45.248 0L376.32 331.008a32 32 0 0 1-45.248 45.248L195.2 240.448a32 32 0 0 1 0-45.248m452.544 452.544a32 32 0 0 1 45.248 0L828.8 783.552a32 32 0 0 1-45.248 45.248L647.744 692.992a32 32 0 0 1 0-45.248M828.8 195.264a32 32 0 0 1 0 45.184L692.992 376.32a32 32 0 0 1-45.248-45.248l135.808-135.808a32 32 0 0 1 45.248 0m-452.544 452.48a32 32 0 0 1 0 45.248L240.448 828.8a32 32 0 0 1-45.248-45.248l135.808-135.808a32 32 0 0 1 45.248 0"
-                            />
-                        </svg>
-                    {/if}
-                </div>
-
-                <div class="justify-end flex items-center">
-                    {#if apods[currentIndex + 1]}
-                        <button
-                            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center"
-                            disabled={currentIndex === apods.length - 1}
-                            onclick={goNext}
-                        >
-                            {new Date(
-                                apods[currentIndex + 1].date,
-                            ).toLocaleDateString("en-US", {
-                                month: "short",
-                                day: "numeric",
-                            })}
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="20"
-                                height="20"
-                                class="-mr-2"
-                                viewBox="0 0 24 24"
-                            >
-                                <g fill="none" fill-rule="evenodd">
-                                    <path
-                                        d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
-                                    />
-                                    <path
-                                        fill="currentColor"
-                                        d="M15.707 11.293a1 1 0 0 1 0 1.414l-5.657 5.657a1 1 0 1 1-1.414-1.414l4.95-4.95l-4.95-4.95a1 1 0 0 1 1.414-1.414z"
-                                    />
-                                </g>
-                            </svg>
-                        </button>
-                    {/if}
-                </div>
-            </div>
-        </section>
-
-        <!-- Desktop Section -->
-        <div
-            class="hidden xl:flex justify-center items-center h-auto xl:h-[100vh] overflow-x-clip xl:[mask-image:linear-gradient(to_left,transparent,black_5%)]"
+    <div class="w-full min-[2600px]:flex justify-center items-center">
+        <section
+            transition:fade
+            class="grid xl:grid-cols-2 gap-y-4 w-full z-20 2xl min-[2600px]:w-3/4"
         >
-            <swiper-container
-                class="apodSwiper max-w-[80vw] xl:max-w-[35vw] pt-8 select-none"
-                effect="cards"
-                grab-cursor="true"
-                observer="true"
-            >
-                {#each apods as apod}
-                    <swiper-slide
-                        lazy={apod.media_type == "image" ? "true" : "false"}
-                        class="min-w-full aspect-1 bg-black bg-cover bg-no-repeat rounded-3xl transition-none transform-none xl:transform-gpu xl:transition-all duration-500"
-                        style="height: 60vh !important;"
-                    >
-                        {#if apod.media_type == "image"}
-                            <Lens bind:lensEffect>
-                                <img
-                                    src={apod.url}
-                                    loading="lazy"
-                                    alt="APOD"
-                                    class="w-full h-full object-cover bg-black"
-                                />
-                            </Lens>
-                        {:else if apod.media_type == "video"}
-                            <div
-                                class="h-full w-full flex justify-center items-center bg-cover bg-no-repeat bg-center"
-                                style="background-image: url('{getThumbnail(
-                                    apod.url,
-                                )}');"
-                            >
-                                <button
-                                    onclick={() => {
-                                        window.open(apod.url, "_blank");
-                                    }}
+            <!-- Mobile Section -->
+            <section class="block xl:hidden">
+                <button
+                    aria-label="Preview in HD"
+                    class="w-full aspect-1 md:aspect-2"
+                    onclick={() => {
+                        if (
+                            apods[currentIndex]?.media_type == "image" &&
+                            apods[currentIndex]?.hdurl
+                        ) {
+                            image = apods[currentIndex]?.hdurl;
+                            open = true;
+                        }
+                    }}
+                >
+                    {#if apods[currentIndex]?.media_type == "image"}
+                        <div
+                            class="w-full h-full bg-cover bg-center bg-no-repeat relative"
+                            style="background-image: url('{apods[currentIndex]
+                                ?.url}');"
+                        >
+                            {#await new Promise((resolve) => {
+                                const img = new Image();
+                                img.onload = () => resolve(true);
+                                img.src = apods[currentIndex]?.url;
+                            })}
+                                <div
+                                    transition:fade={{ duration: 600 }}
+                                    class="absolute inset-0 flex items-center justify-center"
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        class="animate-spin w-12 h-12"
+                                        viewBox="0 0 24 24"
+                                        ><path
+                                            fill="currentColor"
+                                            d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8"
+                                        /></svg
+                                    >
+                                </div>
+                            {/await}
+                        </div>
+                    {:else if apods[currentIndex]?.media_type == "video"}
+                        <div
+                            class="w-full h-full bg-cover bg-no-repeat bg-center flex justify-center items-center mb-[6px]"
+                            style="background-image: url('{getThumbnail(
+                                apods[currentIndex]?.url,
+                            )}');"
+                        >
+                            <a href={apods[currentIndex]?.url} target="_blank">
+                                <div
                                     class="bg-white rounded-xl text-black px-4 py-2 flex gap-2 items-center"
                                 >
                                     <svg
@@ -560,42 +383,230 @@
                                             d="M6.906 4.537A.6.6 0 0 0 6 5.053v13.894a.6.6 0 0 0 .906.516l11.723-6.947a.6.6 0 0 0 0-1.032z"
                                         />
                                     </svg>
-                                    Play Video</button
-                                >
-                            </div>
-                        {:else}
-                            <div
-                                class="h-full w-full flex justify-center items-center"
-                            >
-                                <p class="doto">Unknown Media Type</p>
-                            </div>
-                        {/if}
-                    </swiper-slide>
-                {/each}
-            </swiper-container>
-        </div>
-        <div
-            class="z-10 flex xl:items-start xl:h-[100vh] flex-col text-start justify-start xl:justify-center pb-14 xl:pb-0 xl:pr-24 pt-0 xl:pt-8 px-6 xl:px-0 select-text"
-        >
-            <p class="text-3xl font-semibold mb-2">
-                {apods[currentIndex]?.title}
-            </p>
-            <p class="xl:max-h-[60vh] xl:overflow-y-auto">
-                {apods[currentIndex]?.explanation}
-            </p>
-            {#if apods[currentIndex]?.copyright}
-                <p class="mt-2 text-neutral-300">
-                    <span>© {apods[currentIndex].copyright ?? ""}</span>
-                </p>
-            {/if}
+                                    Play Video
+                                </div>
+                            </a>
+                        </div>
+                    {:else}
+                        <div
+                            class="w-full h-full flex justify-center items-center mb-[6px]"
+                        >
+                            <p class="doto">Unknown Media Type</p>
+                        </div>
+                    {/if}
+                </button>
 
-            {#if apods[currentIndex]?.date == "2024-11-16"}
-                <p class="text-neutral-300 text-sm mt-2">
-                    Fun fact: This APOD marks the birthday of this website!
+                <!-- Mobile Navigation -->
+                <div
+                    class="grid grid-cols-3 justify-between items-center gap-4 p-4 xl:hidden h-14"
+                >
+                    <div>
+                        {#if apods[currentIndex - 1]}
+                            <button
+                                class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center justify-center"
+                                disabled={currentIndex === 0}
+                                onclick={goPrev}
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="20"
+                                    height="20"
+                                    class="-ml-2"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <g fill="none" fill-rule="evenodd">
+                                        <path
+                                            d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
+                                        />
+                                        <path
+                                            fill="currentColor"
+                                            d="M8.293 12.707a1 1 0 0 1 0-1.414l5.657-5.657a1 1 0 1 1 1.414 1.414L10.414 12l4.95 4.95a1 1 0 0 1-1.414 1.414z"
+                                        />
+                                    </g>
+                                </svg>
+                                {new Date(
+                                    apods[currentIndex - 1].date,
+                                ).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                })}
+                            </button>
+                        {:else}
+                            <button
+                                class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center justify-center disabled:text-neutral-400"
+                                disabled={currentIndex === 0}
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="20"
+                                    height="20"
+                                    class="-ml-2"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <g fill="none" fill-rule="evenodd">
+                                        <path
+                                            d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
+                                        />
+                                        <path
+                                            fill="currentColor"
+                                            d="M8.293 12.707a1 1 0 0 1 0-1.414l5.657-5.657a1 1 0 1 1 1.414 1.414L10.414 12l4.95 4.95a1 1 0 0 1-1.414 1.414z"
+                                        />
+                                    </g>
+                                </svg>
+                                Tomorrow
+                            </button>
+                        {/if}
+                    </div>
+
+                    <div class="flex justify-center items-center">
+                        {#if loadingMore}
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="1.3em"
+                                height="1.3em"
+                                class="animate-spin text-neutral-300"
+                                viewBox="0 0 1024 1024"
+                                ><rect
+                                    width="1024"
+                                    height="1024"
+                                    fill="none"
+                                /><path
+                                    fill="currentColor"
+                                    d="M512 64a32 32 0 0 1 32 32v192a32 32 0 0 1-64 0V96a32 32 0 0 1 32-32m0 640a32 32 0 0 1 32 32v192a32 32 0 1 1-64 0V736a32 32 0 0 1 32-32m448-192a32 32 0 0 1-32 32H736a32 32 0 1 1 0-64h192a32 32 0 0 1 32 32m-640 0a32 32 0 0 1-32 32H96a32 32 0 0 1 0-64h192a32 32 0 0 1 32 32M195.2 195.2a32 32 0 0 1 45.248 0L376.32 331.008a32 32 0 0 1-45.248 45.248L195.2 240.448a32 32 0 0 1 0-45.248m452.544 452.544a32 32 0 0 1 45.248 0L828.8 783.552a32 32 0 0 1-45.248 45.248L647.744 692.992a32 32 0 0 1 0-45.248M828.8 195.264a32 32 0 0 1 0 45.184L692.992 376.32a32 32 0 0 1-45.248-45.248l135.808-135.808a32 32 0 0 1 45.248 0m-452.544 452.48a32 32 0 0 1 0 45.248L240.448 828.8a32 32 0 0 1-45.248-45.248l135.808-135.808a32 32 0 0 1 45.248 0"
+                                />
+                            </svg>
+                        {/if}
+                    </div>
+
+                    <div class="justify-end flex items-center">
+                        {#if apods[currentIndex + 1]}
+                            <button
+                                class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center"
+                                disabled={currentIndex === apods.length - 1}
+                                onclick={goNext}
+                            >
+                                {new Date(
+                                    apods[currentIndex + 1].date,
+                                ).toLocaleDateString("en-US", {
+                                    month: "short",
+                                    day: "numeric",
+                                })}
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="20"
+                                    height="20"
+                                    class="-mr-2"
+                                    viewBox="0 0 24 24"
+                                >
+                                    <g fill="none" fill-rule="evenodd">
+                                        <path
+                                            d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
+                                        />
+                                        <path
+                                            fill="currentColor"
+                                            d="M15.707 11.293a1 1 0 0 1 0 1.414l-5.657 5.657a1 1 0 1 1-1.414-1.414l4.95-4.95l-4.95-4.95a1 1 0 0 1 1.414-1.414z"
+                                        />
+                                    </g>
+                                </svg>
+                            </button>
+                        {/if}
+                    </div>
+                </div>
+            </section>
+
+            <!-- Desktop Section -->
+            <div
+                class="hidden xl:flex justify-center items-center h-auto xl:h-[100vh] overflow-x-clip xl:[mask-image:linear-gradient(to_left,transparent,black_5%)]"
+            >
+                <swiper-container
+                    class="apodSwiper max-w-[80vw] xl:max-w-[35vw] min-[2600px]:max-w-[25vw] min-[2600px]:aspect-1 pt-8 select-none"
+                    effect="cards"
+                    grab-cursor="true"
+                    observer="true"
+                >
+                    {#each apods as apod}
+                        <swiper-slide
+                            lazy={apod.media_type == "image" ? "true" : "false"}
+                            class="min-w-full aspect-1 bg-black bg-cover bg-no-repeat rounded-3xl transition-none transform-none xl:transform-gpu xl:transition-all duration-500"
+                            style="height: 60vh !important;"
+                        >
+                            {#if apod.media_type == "image"}
+                                <Lens bind:lensEffect>
+                                    <img
+                                        src={apod.url}
+                                        loading="lazy"
+                                        alt="APOD"
+                                        class="w-full h-full object-cover bg-black"
+                                    />
+                                </Lens>
+                            {:else if apod.media_type == "video"}
+                                <div
+                                    class="h-full w-full flex justify-center items-center bg-cover bg-no-repeat bg-center"
+                                    style="background-image: url('{getThumbnail(
+                                        apod.url,
+                                    )}');"
+                                >
+                                    <button
+                                        onclick={() => {
+                                            window.open(apod.url, "_blank");
+                                        }}
+                                        class="bg-white rounded-xl text-black px-4 py-2 flex gap-2 items-center"
+                                    >
+                                        <svg
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            width="1.3em"
+                                            height="1.3em"
+                                            viewBox="0 0 24 24"
+                                            ><rect
+                                                width="24"
+                                                height="24"
+                                                fill="none"
+                                            /><path
+                                                fill="currentColor"
+                                                stroke="currentColor"
+                                                stroke-linecap="round"
+                                                stroke-linejoin="round"
+                                                stroke-width="1.5"
+                                                d="M6.906 4.537A.6.6 0 0 0 6 5.053v13.894a.6.6 0 0 0 .906.516l11.723-6.947a.6.6 0 0 0 0-1.032z"
+                                            />
+                                        </svg>
+                                        Play Video</button
+                                    >
+                                </div>
+                            {:else}
+                                <div
+                                    class="h-full w-full flex justify-center items-center"
+                                >
+                                    <p class="doto">Unknown Media Type</p>
+                                </div>
+                            {/if}
+                        </swiper-slide>
+                    {/each}
+                </swiper-container>
+            </div>
+            <div
+                class="z-10 flex xl:items-start xl:h-[100vh] flex-col text-start justify-start xl:justify-center pb-14 xl:pb-0 xl:pr-24 pt-0 xl:pt-8 px-6 xl:px-0 select-text"
+            >
+                <p class="text-3xl font-semibold mb-2">
+                    {apods[currentIndex]?.title}
                 </p>
-            {/if}
-        </div>
-    </section>
+                <p class="xl:max-h-[60vh] xl:overflow-y-auto">
+                    {apods[currentIndex]?.explanation}
+                </p>
+                {#if apods[currentIndex]?.copyright}
+                    <p class="mt-2 text-neutral-300">
+                        <span>© {apods[currentIndex].copyright ?? ""}</span>
+                    </p>
+                {/if}
+
+                {#if apods[currentIndex]?.date == "2024-11-16"}
+                    <p class="text-neutral-300 text-sm mt-2">
+                        Fun fact: This APOD marks the birthday of this website!
+                    </p>
+                {/if}
+            </div>
+        </section>
+    </div>
 
     <section class="z-10 fixed bottom-5 right-5">
         <div

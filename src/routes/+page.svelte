@@ -8,6 +8,7 @@
     import { PUBLIC_API_KEY } from "$env/static/public";
     import ImagePreview from "$lib/ImagePreview.svelte";
     import AboutPopup from "$lib/AboutPopup.svelte";
+    import Lens from "$lib/Lens.svelte";
 
     let loading = $state(true);
     let apods = $state([]);
@@ -19,11 +20,22 @@
         msg: "",
     });
 
+    let lensEffect = $state(false);
+
     let viewAbout = $state(false);
     let apiCallsLeft = $state(-1);
 
     let open = $state(false);
     let image = $state("");
+
+    async function toggleLensEffect() {
+        if (apods.length == 1 && loadingMore == true) {
+            return;
+        }
+
+        lensEffect = !lensEffect;
+        localStorage.setItem("apod-lens-effect", lensEffect);
+    }
 
     async function requestMonthlyApods(startMonth, endMonth) {
         const endDate = new Date();
@@ -142,6 +154,10 @@
 
         loading = false;
         loadingMore = false;
+
+        if (localStorage.getItem("apod-lens-effect") == "true") {
+            lensEffect = true;
+        }
 
         register();
 
@@ -303,10 +319,31 @@
             >
                 {#if apods[currentIndex]?.media_type == "image"}
                     <div
-                        class="w-full h-full bg-cover bg-no-repeat bg-center"
+                        class="w-full h-full bg-cover bg-center bg-no-repeat relative"
                         style="background-image: url('{apods[currentIndex]
                             ?.url}');"
-                    ></div>
+                    >
+                        {#await new Promise((resolve) => {
+                            const img = new Image();
+                            img.onload = () => resolve(true);
+                            img.src = apods[currentIndex]?.url;
+                        })}
+                            <div
+                                transition:fade={{ duration: 600 }}
+                                class="absolute inset-0 flex items-center justify-center"
+                            >
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    class="animate-spin w-12 h-12"
+                                    viewBox="0 0 24 24"
+                                    ><path
+                                        fill="currentColor"
+                                        d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8"
+                                    /></svg
+                                >
+                            </div>
+                        {/await}
+                    </div>
                 {:else if apods[currentIndex]?.media_type == "video"}
                     <div
                         class="w-full h-full bg-cover bg-no-repeat bg-center flex justify-center items-center mb-[6px]"
@@ -356,17 +393,57 @@
                 <div>
                     {#if apods[currentIndex - 1]}
                         <button
-                            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm"
+                            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center justify-center"
                             disabled={currentIndex === 0}
                             onclick={goPrev}
                         >
-                            ←
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="20"
+                                height="20"
+                                class="-ml-2"
+                                viewBox="0 0 24 24"
+                            >
+                                <g fill="none" fill-rule="evenodd">
+                                    <path
+                                        d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
+                                    />
+                                    <path
+                                        fill="currentColor"
+                                        d="M8.293 12.707a1 1 0 0 1 0-1.414l5.657-5.657a1 1 0 1 1 1.414 1.414L10.414 12l4.95 4.95a1 1 0 0 1-1.414 1.414z"
+                                    />
+                                </g>
+                            </svg>
                             {new Date(
                                 apods[currentIndex - 1].date,
                             ).toLocaleDateString("en-US", {
                                 month: "short",
                                 day: "numeric",
                             })}
+                        </button>
+                    {:else}
+                        <button
+                            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center justify-center disabled:text-neutral-400"
+                            disabled={currentIndex === 0}
+                        >
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="20"
+                                height="20"
+                                class="-ml-2"
+                                viewBox="0 0 24 24"
+                            >
+                                <g fill="none" fill-rule="evenodd">
+                                    <path
+                                        d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
+                                    />
+                                    <path
+                                        fill="currentColor"
+                                        d="M8.293 12.707a1 1 0 0 1 0-1.414l5.657-5.657a1 1 0 1 1 1.414 1.414L10.414 12l4.95 4.95a1 1 0 0 1-1.414 1.414z"
+                                    />
+                                </g>
+                            </svg>
+                            Tomorrow
                         </button>
                     {/if}
                 </div>
@@ -394,7 +471,7 @@
                 <div class="justify-end flex items-center">
                     {#if apods[currentIndex + 1]}
                         <button
-                            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm"
+                            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center"
                             disabled={currentIndex === apods.length - 1}
                             onclick={goNext}
                         >
@@ -404,7 +481,23 @@
                                 month: "short",
                                 day: "numeric",
                             })}
-                            →
+                            <svg
+                                xmlns="http://www.w3.org/2000/svg"
+                                width="20"
+                                height="20"
+                                class="-mr-2"
+                                viewBox="0 0 24 24"
+                            >
+                                <g fill="none" fill-rule="evenodd">
+                                    <path
+                                        d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
+                                    />
+                                    <path
+                                        fill="currentColor"
+                                        d="M15.707 11.293a1 1 0 0 1 0 1.414l-5.657 5.657a1 1 0 1 1-1.414-1.414l4.95-4.95l-4.95-4.95a1 1 0 0 1 1.414-1.414z"
+                                    />
+                                </g>
+                            </svg>
                         </button>
                     {/if}
                 </div>
@@ -413,7 +506,7 @@
 
         <!-- Desktop Section -->
         <div
-            class="hidden xl:flex justify-center items-center h-auto xl:h-[100vh] overflow-x-clip xl:[mask-image:linear-gradient(to_left,transparent,black_20%)]"
+            class="hidden xl:flex justify-center items-center h-auto xl:h-[100vh] overflow-x-clip xl:[mask-image:linear-gradient(to_left,transparent,black_5%)]"
         >
             <swiper-container
                 class="apodSwiper max-w-[80vw] xl:max-w-[35vw] pt-8 select-none"
@@ -428,12 +521,14 @@
                         style="height: 60vh !important;"
                     >
                         {#if apod.media_type == "image"}
-                            <img
-                                src={apod.url}
-                                loading="lazy"
-                                alt="APOD"
-                                class="w-full h-full object-cover bg-black"
-                            />
+                            <Lens bind:lensEffect>
+                                <img
+                                    src={apod.url}
+                                    loading="lazy"
+                                    alt="APOD"
+                                    class="w-full h-full object-cover bg-black"
+                                />
+                            </Lens>
                         {:else if apod.media_type == "video"}
                             <div
                                 class="h-full w-full flex justify-center items-center bg-cover bg-no-repeat bg-center"
@@ -504,7 +599,7 @@
 
     <section class="z-10 fixed bottom-5 right-5">
         <div
-            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl grid grid-cols-3 items-center justify-center gap-2"
+            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl grid grid-cols-3 xl:grid-cols-4 items-center justify-center gap-2"
         >
             <button
                 data-tippy-content="Preview in HD"
@@ -531,6 +626,32 @@
                     />
                 </svg>
                 <span class="sr-only">Preview in HD</span>
+            </button>
+
+            <button
+                data-tippy-content="Toggle Lens Effect"
+                class="w-full justify-center items-center hidden xl:flex"
+                onclick={toggleLensEffect}
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="1.45em"
+                    height="1.45em"
+                    viewBox="0 0 24 24"
+                    class="{lensEffect
+                        ? 'text-neutral-400 hover:text-white'
+                        : 'text-neutral-600'} duration-300"
+                >
+                    <path
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0-14 0m18 11l-6-6"
+                    />
+                </svg>
+                <span class="sr-only">Toggle Lens Effect</span>
             </button>
 
             <button

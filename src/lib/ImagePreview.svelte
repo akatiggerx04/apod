@@ -11,14 +11,14 @@
     let startY = $state(0);
     let isPanning = $state(false);
 
-    function handleWheel(event) {
+    function handleWheel(/** @type {WheelEvent} */ event) {
         event.preventDefault();
         const delta = event.deltaY * -0.01;
         scale.update((n) => Math.max(1, Math.min(5, n + delta)));
         checkAndResetPosition();
     }
 
-    function handleTouchStart(event) {
+    function handleTouchStart(/** @type {TouchEvent} */ event) {
         if (event.touches.length === 2) {
             const touch1 = event.touches[0];
             const touch2 = event.touches[1];
@@ -27,7 +27,7 @@
         }
     }
 
-    function handleTouchMove(event) {
+    function handleTouchMove(/** @type {TouchEvent} */ event) {
         if (event.touches.length === 2) {
             const touch1 = event.touches[0];
             const touch2 = event.touches[1];
@@ -42,13 +42,13 @@
         }
     }
 
-    function handleMouseDown(event) {
+    function handleMouseDown(/** @type {MouseEvent} */ event) {
         isPanning = true;
         startX = event.clientX;
         startY = event.clientY;
     }
 
-    function handleMouseMove(event) {
+    function handleMouseMove(/** @type {MouseEvent} */ event) {
         if (isPanning && $scale > 1) {
             const dx = event.clientX - startX;
             const dy = event.clientY - startY;
@@ -64,7 +64,7 @@
         checkAndResetPosition();
     }
 
-    function resetZoom(event) {
+    function resetZoom(/** @type {KeyboardEvent | MouseEvent} */ event) {
         if (event.target === event.currentTarget && $scale === 1) {
             closePreview();
         } else if (event.target === event.currentTarget) {
@@ -124,13 +124,31 @@
                 ></path></svg
             >
         </button>
-        <img
-            src={image}
-            alt="Preview"
-            class="w-full h-full object-contain py-10 md:lg:py-32 px-8 md:px-24 lg:px-32 select-none"
-            class:cursor-grabbing={isPanning}
-            style="transform: scale({$scale}) translate({$panX}px, {$panY}px); view-transition-name: var(--imagePreviewAnimate);"
-        />
+        {#await new Promise((r) => {
+            const img = new Image();
+            img.onload = () => r(true);
+            img.src = image;
+        })}
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                class="animate-spin w-12 h-12 drop-shadow-md"
+            >
+                <path
+                    fill="currentColor"
+                    d="M12 4V2A10 10 0 0 0 2 12h2a8 8 0 0 1 8-8"
+                />
+            </svg>
+        {:then}
+            <img
+                transition:fade
+                src={image}
+                alt="Preview"
+                class="w-full h-full object-contain py-10 md:lg:py-32 px-8 md:px-24 lg:px-32 select-none"
+                class:cursor-grabbing={isPanning}
+                style="transform: scale({$scale}) translate({$panX}px, {$panY}px); view-transition-name: var(--imagePreviewAnimate);"
+            />
+        {/await}
     </div>
 {/if}
 

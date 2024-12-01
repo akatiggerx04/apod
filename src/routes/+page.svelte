@@ -675,7 +675,9 @@
                                 currentIndex
                             ].date
                                 .split("-")
-                                .map((n) => n.padStart(2, "0"))
+                                .map((/** @type {string} **/ n) =>
+                                    String(n).padStart(2, "0"),
+                                )
                                 .join("")
                                 .substring(2)}.html`,
                             "_blank",

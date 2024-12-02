@@ -43,12 +43,11 @@
     </div>
 
     <p class="text-sm text-neutral-300 mt-4">
-        This is an unofficial client for NASA's Astronomy Picture of The Day
-        (APOD) service, which utilizes NASA's APOD API to display daily
-        astronomical images and information. The original APOD website is
-        maintained by NASA and Michigan Technological University at
-        apod.nasa.gov/apod. This website acts as an alternative interface while
-        giving full credit and attribution to the original APOD service and its
+        This unofficial client for NASA's Astronomy Picture of the Day (APOD)
+        uses the APOD API to present daily astronomical images and information.
+        The original APOD website is created & maintained by Robert Nemiroff and
+        Jerry Bonnell at apod.nasa.gov/apod. This site serves as an alternative
+        interface, fully crediting the original APOD service and its
         contributors.
     </p>
 

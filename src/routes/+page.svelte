@@ -39,6 +39,9 @@
     // About Popup
     let viewAbout = $state(false);
 
+    // Hide actions on mobilw
+    let isAtBottom = $state(false);
+
     // Preview in HD popup
     let open = $state(false);
     let image = $state("");
@@ -77,7 +80,8 @@
     async function loadSpecificDate(/** @type {string} */ dateStr) {
         loading = true;
         try {
-            const date = new Date(dateStr);
+            const parts = dateStr.split(/[-\/]/);
+            const date = new Date(`${parts[0]}/${parts[1]}/${parts[2]}`);
             if (isNaN(date.getTime())) {
                 error.error = true;
                 error.msg = "Invalid APOD date format. Try MM-DD-YYYY";
@@ -111,8 +115,12 @@
 
         try {
             // Find oldest date in batch by comparing all dates
+            const dates = apods.map((apod) => {
+                const parts = apod.date.split(/[-\/]/);
+                return new Date(`${parts[0]}/${parts[1]}/${parts[2]}`);
+            });
             const oldestDate = new Date(
-                Math.min(...apods.map((apod) => new Date(apod.date).getTime())),
+                Math.min(...dates.map((d) => d.getTime())),
             );
 
             const endDate = new Date(oldestDate);
@@ -237,6 +245,15 @@
             }
             tippy("[data-tippy-content]");
         }, 100);
+
+        function checkScroll() {
+            if (window.innerWidth >= 1280) return; // Only on mobile
+            const scrollPosition = window.scrollY + window.innerHeight;
+            const documentHeight = document.documentElement.scrollHeight;
+            isAtBottom = scrollPosition >= documentHeight - 10;
+        }
+
+        window.addEventListener("scroll", checkScroll);
     });
 </script>
 
@@ -285,7 +302,9 @@
     >
     {#if apods?.length && apods[currentIndex].date}
         <p class="doto drop-shadow-lg">
-            - {new Date(apods[currentIndex].date).toLocaleDateString("en-US", {
+            - {new Date(
+                apods[currentIndex].date.replace(/-/g, "/"),
+            ).toLocaleDateString("en-US", {
                 month: "long",
                 day: "numeric",
                 year: "numeric",
@@ -485,7 +504,10 @@
                                         </g>
                                     </svg>
                                     {new Date(
-                                        apods[currentIndex - 1].date,
+                                        apods[currentIndex - 1].date.replace(
+                                            /-/g,
+                                            "/",
+                                        ),
                                     ).toLocaleDateString("en-US", {
                                         month: "short",
                                         day: "numeric",
@@ -546,7 +568,10 @@
                                     onclick={goNext}
                                 >
                                     {new Date(
-                                        apods[currentIndex + 1].date,
+                                        apods[currentIndex + 1].date.replace(
+                                            /-/g,
+                                            "/",
+                                        ),
                                     ).toLocaleDateString("en-US", {
                                         month: "short",
                                         day: "numeric",
@@ -651,6 +676,13 @@
                 <p class="text-3xl font-semibold mb-2">
                     {apods[currentIndex]?.title}
                 </p>
+
+                {#if apods[currentIndex]?.date == "2024-11-16"}
+                    <p class="text-neutral-300 text-sm mt-1 mb-2">
+                        Fun fact: This APOD marks the birthday of this website!
+                    </p>
+                {/if}
+
                 <p class="xl:max-h-[60vh] xl:overflow-y-auto">
                     {apods[currentIndex]?.explanation}
                 </p>
@@ -666,17 +698,15 @@
                         <span>{apods[currentIndex].credits ?? ""}</span>
                     </p>
                 {/if}
-
-                {#if apods[currentIndex]?.date == "11-16-2024"}
-                    <p class="text-neutral-300 text-sm mt-2">
-                        Fun fact: This APOD marks the birthday of this website!
-                    </p>
-                {/if}
             </div>
         </section>
     </div>
 
-    <section class="z-10 fixed bottom-5 right-5">
+    <section
+        class="z-10 fixed bottom-5 right-5 xl:opacity-100 transition-opacity duration-300"
+        class:opacity-0={isAtBottom}
+        class:pointer-events-none={isAtBottom}
+    >
         <div
             class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl grid grid-cols-3 xl:grid-cols-4 items-center justify-center gap-2"
         >
@@ -696,7 +726,7 @@
                     viewBox="0 0 24 24"
                     class="{apods[currentIndex]?.hdurl
                         ? 'text-neutral-400 hover:text-white'
-                        : 'text-neutral-600'} duration-300"
+                        : 'opacity-20'} duration-300"
                 >
                     <rect width="24" height="24" fill="none" />
                     <path
@@ -719,7 +749,7 @@
                     viewBox="0 0 24 24"
                     class="{lensEffect
                         ? 'text-neutral-400 hover:text-white'
-                        : 'text-neutral-600'} duration-300"
+                        : 'opacity-20'} duration-300"
                 >
                     <path
                         fill="none"
@@ -748,7 +778,7 @@
                     height="1.4em"
                     class="{apods[currentIndex]?.link
                         ? 'text-neutral-400 hover:text-white'
-                        : 'text-neutral-600'} duration-300"
+                        : 'opacity-20'} duration-300"
                     viewBox="0 0 256 256"
                 >
                     <rect width="256" height="256" fill="none" />

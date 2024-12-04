@@ -30,9 +30,13 @@
             const dateParam = urlParams.get("date");
 
             if (dateParam) {
-                const date = new Date(dateParam);
+                // Replace hyphens with slashes for Safari compatibility
+                const safariSafeDate = dateParam.replace(/-/g, "/");
+                const date = new Date(safariSafeDate);
                 if (isNaN(date.getTime())) {
-                    throw new Error("Invalid date format");
+                    throw new Error(
+                        "Invalid date format. Please use YYYY-MM-DD",
+                    );
                 }
                 const result = await fetchAPOD(date);
                 apod = result || {};

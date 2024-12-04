@@ -129,16 +129,13 @@ async function parseAPODPage(
   props.copyright = copyright;
 
   props.media_type = mediaType;
-  props.date = new Date(date)
-    .toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    })
-    .split("/")
-    .join("-");
 
-  props.link = `https://apod.nasa.gov/apod/ap${formatDate(new Date(props.date))}.html`;
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  props.date = year + "-" + month + "-" + day;
+
+  props.link = `https://apod.nasa.gov/apod/ap${formatDate(new Date(date.toString().replace(/-/g, "/")))}.html`;
 
   props.error = !title || !explanation || !mediaUrl;
 
@@ -272,7 +269,9 @@ export async function fetchAPOD(
   try {
     if (!endDate) {
       // Single date fetch
-      let date = startDate ? new Date(startDate) : new Date();
+      let date = startDate
+        ? new Date(startDate.toString().replace(/-/g, "/"))
+        : new Date();
       let formattedDate = formatDate(date);
 
       // Check cache first
@@ -300,8 +299,8 @@ export async function fetchAPOD(
     }
 
     // Date range fetch
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+    const start = new Date(startDate.toString().replace(/-/g, "/"));
+    const end = new Date(endDate.toString().replace(/-/g, "/"));
     const dates = [];
     let currentDate = start;
 

@@ -83,7 +83,7 @@
         <p class="text-red-500">{error.msg}</p>
     </div>
 {:else if apod}
-    <button class="cursor-pointer" on:click={handleClick}>
+    <button class="cursor-pointer" onclick={handleClick}>
         {#if apod.media_type === "image"}
             <img
                 src={apod.url}

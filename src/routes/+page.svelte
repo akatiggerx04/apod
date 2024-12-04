@@ -667,7 +667,7 @@
                     </p>
                 {/if}
 
-                {#if apods[currentIndex]?.date == "2024-11-16"}
+                {#if apods[currentIndex]?.date == "11-16-2024"}
                     <p class="text-neutral-300 text-sm mt-2">
                         Fun fact: This APOD marks the birthday of this website!
                     </p>

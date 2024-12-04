@@ -96,7 +96,7 @@ For major changes, please open an issue first to discuss what you would like to 
 
 The Astronomy Picture of the Day (APOD) service is created and maintained by:
 
-- [Dr. Robert Nemiroff](http://www.phy.mtu.edu/faculty/Nemiroff.html) (Michigan Technological University)
-- [Dr. Jerry Bonnell](https://apod.nasa.gov/htmltest/jbonnell/www/bonnell.html) (UMCP)
+- [Robert Nemiroff](http://www.phy.mtu.edu/faculty/Nemiroff.html) (Michigan Technological University)
+- [Jerry Bonnell](https://apod.nasa.gov/htmltest/jbonnell/www/bonnell.html) (UMCP)
 
 All images and content are credited to their respective owners and copyright holders as noted in each daily entry. This alternative interface is an independent project that builds upon and showcases APOD's content while respecting all original attributions.

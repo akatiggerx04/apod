@@ -43,28 +43,49 @@
     </div>
 
     <p class="text-sm text-neutral-300 mt-4">
-        This unofficial client for NASA's Astronomy Picture of the Day (APOD)
-        uses the APOD API to present daily astronomical images and information.
-        The original APOD website is created & maintained by Robert Nemiroff and
-        Jerry Bonnell at apod.nasa.gov/apod. This site serves as an alternative
-        interface, fully crediting the original APOD service and its
-        contributors.
+        This alternative client for NASA's Astronomy Picture of the Day (APOD)
+        presents daily astronomical & scientific images and their explanations.
+        The original APOD website is created and maintained by <a
+            href="http://www.phy.mtu.edu/faculty/Nemiroff.html"
+            target="_blank"
+            ><span class="hover:text-neutral-100 hover:underline duration-200"
+                >Robert Nemiroff</span
+            ></a
+        >
+        and
+        <a
+            href="https://apod.nasa.gov/htmltest/jbonnell/www/bonnell.html"
+            target="_blank"
+            ><span class="hover:text-neutral-100 hover:underline duration-200"
+                >Jerry Bonnell</span
+            ></a
+        >
+        at
+        <a href="https://apod.nasa.gov/apod/astropix.html" target="_blank"
+            ><span class="hover:text-neutral-100 hover:underline duration-200"
+                >apod.nasa.gov</span
+            ></a
+        >. This site serves as an alternative interface, fully crediting the
+        original APOD service and its contributors.
     </p>
 
     <hr class="my-3 rounded border-neutral-500 opacity-40" />
 
     <div class="flex flex-wrap items-center gap-4 text-sm">
         <a href="mailto:apod@akatgx.link" target="_blank">
-            <p class="font-medium">Contact</p>
+            <p class="font-medium hover:underline">Contact</p>
         </a>
         <a href="https://github.com/akatiggerx04/apod" target="_blank">
-            <p class="font-medium">Contribute</p>
+            <p class="font-medium hover:underline">Contribute</p>
+        </a>
+        <a
+            href="https://asterisk.apod.com/viewtopic.php?t=44174"
+            target="_blank"
+        >
+            <p class="font-medium hover:underline">Discuss</p>
         </a>
         <a href="https://apod.nasa.gov/apod" target="_blank">
-            <p class="font-medium">APOD</p>
-        </a>
-        <a href="https://api.nasa.gov" target="_blank">
-            <p class="font-medium">NASA's APIs</p>
+            <p class="font-medium hover:underline">APOD</p>
         </a>
     </div>
 </section>

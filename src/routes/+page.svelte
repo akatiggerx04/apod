@@ -4,10 +4,14 @@
     import tippy from "tippy.js";
     import "tippy.js/dist/tippy.css";
     import { fade } from "svelte/transition";
-    import { PUBLIC_API_KEY } from "$env/static/public";
     import ImagePreview from "$lib/ImagePreview.svelte";
     import AboutPopup from "$lib/AboutPopup.svelte";
     import Lens from "$lib/Lens.svelte";
+    import { fetchAPOD } from "$lib/apod.ts";
+
+    // Configuration
+    const initialDays = 10;
+    const incrementDays = 20;
 
     // Is the page loading variable
     let loading = $state(true);
@@ -18,9 +22,6 @@
 
     // Current APOD the user is looking at
     let currentIndex = $state(0);
-
-    // Load one month worth of content by default
-    let monthsToLoad = $state(1);
 
     // This is the small spinner; indicates wether more apods are loading in the backgroud.
     let loadingMore = $state(false);
@@ -36,7 +37,6 @@
 
     // About Popup
     let viewAbout = $state(false);
-    let apiCallsLeft = $state(-1);
 
     // Preview in HD popup
     let open = $state(false);
@@ -50,36 +50,6 @@
 
         lensEffect = !lensEffect;
         localStorage.setItem("apod-lens-effect", lensEffect.toString());
-    }
-
-    // Fetch APOD from API
-    async function requestApods(
-        /** @type {Date} */ startDate,
-        /** @type {Date} */ endDate,
-    ) {
-        try {
-            const rawResponse = await fetch(
-                `https://api.nasa.gov/planetary/apod?start_date=${startDate.toISOString().split("T")[0]}&end_date=${endDate.toISOString().split("T")[0]}&api_key=${PUBLIC_API_KEY}`,
-                {
-                    method: "GET",
-                    headers: {
-                        "X-Message-To-User":
-                            "Please Don't Steal API Key; Get your own at api.nasa.gov.",
-                    },
-                },
-            );
-
-            apiCallsLeft = parseInt(
-                rawResponse.headers.get("x-ratelimit-remaining") ?? "0",
-            );
-            const jsonResponse = await rawResponse.json();
-            return jsonResponse.reverse();
-        } catch (e) {
-            error.error = true;
-            error.msg =
-                e instanceof Error ? e.message : "An unknown error occurred";
-            return [];
-        }
     }
 
     // Get thumbnail for YouTube videos
@@ -96,7 +66,7 @@
         return "/assets/images/vid_thumb.webp";
     }
 
-    // Load another month of images (For Infinite Loading)
+    // Load another batch of images
     async function loadMoreApods() {
         if (loadingMore) return;
 
@@ -108,13 +78,14 @@
         endDate.setDate(endDate.getDate() - 1);
 
         const startDate = new Date(oldestDate);
-        startDate.setMonth(startDate.getMonth() - 1);
+        startDate.setDate(startDate.getDate() - incrementDays);
 
-        const newApods = await requestApods(startDate, endDate);
+        const newApods = await fetchAPOD(startDate, endDate);
         apods = [...apods, ...newApods];
         if (apods.length > 0) {
             localStorage.setItem("latestApod", JSON.stringify(apods[0]));
         }
+
         loadingMore = false;
     }
 
@@ -148,12 +119,21 @@
 
         const endDate = new Date();
         const startDate = new Date();
-        startDate.setMonth(startDate.getMonth() - monthsToLoad);
+        startDate.setDate(startDate.getDate() - initialDays);
 
-        const freshApods = await requestApods(startDate, endDate);
-        apods = freshApods;
-        if (freshApods.length > 0) {
-            localStorage.setItem("latestApod", JSON.stringify(freshApods[0]));
+        try {
+            const freshApods = await fetchAPOD(startDate, endDate);
+            apods = freshApods;
+            if (freshApods.length > 0) {
+                localStorage.setItem(
+                    "latestApod",
+                    JSON.stringify(freshApods[0]),
+                );
+            }
+        } catch (e) {
+            error.error = true;
+            error.msg =
+                e instanceof Error ? e.message : "An unknown error occurred";
         }
 
         loading = false;
@@ -599,6 +579,13 @@
                     </p>
                 {/if}
 
+                {#if apods[currentIndex]?.credits}
+                    <p class="mt-2 text-neutral-300">
+                        <span class="font-medium">Credits:</span>
+                        <span>{apods[currentIndex].credits ?? ""}</span>
+                    </p>
+                {/if}
+
                 {#if apods[currentIndex]?.date == "2024-11-16"}
                     <p class="text-neutral-300 text-sm mt-2">
                         Fun fact: This APOD marks the birthday of this website!
@@ -669,19 +656,8 @@
                 data-tippy-content="View at apod.nasa.gov"
                 class="w-full items-center justify-center flex"
                 onclick={() => {
-                    if (apods[currentIndex]?.date) {
-                        window.open(
-                            `https://apod.nasa.gov/apod/ap${apods[
-                                currentIndex
-                            ].date
-                                .split("-")
-                                .map((/** @type {string} **/ n) =>
-                                    String(n).padStart(2, "0"),
-                                )
-                                .join("")
-                                .substring(2)}.html`,
-                            "_blank",
-                        );
+                    if (apods[currentIndex]?.link) {
+                        window.open(apods[currentIndex].link, "_blank");
                     }
                 }}
             >
@@ -689,7 +665,9 @@
                     xmlns="http://www.w3.org/2000/svg"
                     width="1.4em"
                     height="1.4em"
-                    class="text-neutral-400 hover:text-white"
+                    class="{apods[currentIndex]?.link
+                        ? 'text-neutral-400 hover:text-white'
+                        : 'text-neutral-600'} duration-300"
                     viewBox="0 0 256 256"
                 >
                     <rect width="256" height="256" fill="none" />
@@ -735,13 +713,6 @@
         class="z-50 fixed top-0 left-0 w-full min-h-screen justify-center items-center flex"
     >
         <AboutPopup bind:viewAbout />
-    </div>
-
-    <div class="fixed bottom-2 left-2">
-        <p class="text-neutral-500 text-xs opacity-50">
-            Hourly Remaining API Calls:
-            <span class="font-medium">{apiCallsLeft}</span>
-        </p>
     </div>
 {/if}
 

@@ -43,6 +43,7 @@
     let open = $state(false);
     let image = $state("");
 
+    /** @type {function(string): void} */
     function updateURL(date) {
         const url = new URL(window.location.href);
         url.searchParams.set("date", date);
@@ -73,7 +74,7 @@
         return "/assets/images/vid_thumb.webp";
     }
 
-    async function loadSpecificDate(dateStr) {
+    async function loadSpecificDate(/** @type {string} */ dateStr) {
         loading = true;
         try {
             const date = new Date(dateStr);
@@ -111,7 +112,7 @@
         try {
             // Find oldest date in batch by comparing all dates
             const oldestDate = new Date(
-                Math.min(...apods.map((apod) => new Date(apod.date))),
+                Math.min(...apods.map((apod) => new Date(apod.date).getTime())),
             );
 
             const endDate = new Date(oldestDate);
@@ -121,10 +122,15 @@
             startDate.setDate(startDate.getDate() - incrementDays);
 
             const newApods = await fetchAPOD(startDate, endDate);
+            const newApodsArray = Array.isArray(newApods)
+                ? newApods
+                : newApods
+                  ? [newApods]
+                  : [];
 
             // Force reactivity by creating a new array
             apods = [...apods];
-            apods.push(...newApods);
+            apods.push(...newApodsArray);
 
             if (apods.length > 0) {
                 localStorage.setItem("latestApod", JSON.stringify(apods[0]));
@@ -192,12 +198,12 @@
                     loading = false;
                 }
 
-                const freshApods = await fetchAPOD(startDate, endDate);
-                apods = freshApods;
-                if (freshApods.length > 0) {
+                const freshApods = (await fetchAPOD(startDate, endDate)) || [];
+                apods = Array.isArray(freshApods) ? freshApods : [freshApods];
+                if (apods.length > 0) {
                     localStorage.setItem(
                         "latestApod",
-                        JSON.stringify(freshApods[0]),
+                        JSON.stringify(apods[0]),
                     );
                 }
             } catch (e) {
@@ -366,6 +372,7 @@
             class="grid xl:grid-cols-2 gap-y-4 w-full z-20 2xl min-[2600px]:w-3/4"
         >
             <!-- Mobile Section -->
+
             <section class="block xl:hidden">
                 <button
                     aria-label="Preview in HD"
@@ -448,123 +455,124 @@
                         </div>
                     {/if}
                 </button>
+                {#if apods.length != 1}
+                    <!-- Mobile Navigation -->
+                    <div
+                        class="grid grid-cols-3 justify-between items-center gap-4 p-4 xl:hidden h-14"
+                    >
+                        <div>
+                            {#if apods[currentIndex - 1]}
+                                <button
+                                    class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center justify-center"
+                                    disabled={currentIndex === 0}
+                                    onclick={goPrev}
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="20"
+                                        height="20"
+                                        class="-ml-2"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <g fill="none" fill-rule="evenodd">
+                                            <path
+                                                d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
+                                            />
+                                            <path
+                                                fill="currentColor"
+                                                d="M8.293 12.707a1 1 0 0 1 0-1.414l5.657-5.657a1 1 0 1 1 1.414 1.414L10.414 12l4.95 4.95a1 1 0 0 1-1.414 1.414z"
+                                            />
+                                        </g>
+                                    </svg>
+                                    {new Date(
+                                        apods[currentIndex - 1].date,
+                                    ).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                    })}
+                                </button>
+                            {:else}
+                                <button
+                                    class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center justify-center disabled:text-neutral-400"
+                                    disabled={currentIndex === 0}
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="20"
+                                        height="20"
+                                        class="-ml-2"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <g fill="none" fill-rule="evenodd">
+                                            <path
+                                                d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
+                                            />
+                                            <path
+                                                fill="currentColor"
+                                                d="M8.293 12.707a1 1 0 0 1 0-1.414l5.657-5.657a1 1 0 1 1 1.414 1.414L10.414 12l4.95 4.95a1 1 0 0 1-1.414 1.414z"
+                                            />
+                                        </g>
+                                    </svg>
+                                    Tomorrow
+                                </button>
+                            {/if}
+                        </div>
 
-                <!-- Mobile Navigation -->
-                <div
-                    class="grid grid-cols-3 justify-between items-center gap-4 p-4 xl:hidden h-14"
-                >
-                    <div>
-                        {#if apods[currentIndex - 1]}
-                            <button
-                                class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center justify-center"
-                                disabled={currentIndex === 0}
-                                onclick={goPrev}
-                            >
+                        <div class="flex justify-center items-center">
+                            {#if loadingMore}
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
-                                    width="20"
-                                    height="20"
-                                    class="-ml-2"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <g fill="none" fill-rule="evenodd">
-                                        <path
-                                            d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
-                                        />
-                                        <path
-                                            fill="currentColor"
-                                            d="M8.293 12.707a1 1 0 0 1 0-1.414l5.657-5.657a1 1 0 1 1 1.414 1.414L10.414 12l4.95 4.95a1 1 0 0 1-1.414 1.414z"
-                                        />
-                                    </g>
+                                    width="1.3em"
+                                    height="1.3em"
+                                    class="animate-spin text-neutral-300"
+                                    viewBox="0 0 1024 1024"
+                                    ><rect
+                                        width="1024"
+                                        height="1024"
+                                        fill="none"
+                                    /><path
+                                        fill="currentColor"
+                                        d="M512 64a32 32 0 0 1 32 32v192a32 32 0 0 1-64 0V96a32 32 0 0 1 32-32m0 640a32 32 0 0 1 32 32v192a32 32 0 1 1-64 0V736a32 32 0 0 1 32-32m448-192a32 32 0 0 1-32 32H736a32 32 0 1 1 0-64h192a32 32 0 0 1 32 32m-640 0a32 32 0 0 1-32 32H96a32 32 0 0 1 0-64h192a32 32 0 0 1 32 32M195.2 195.2a32 32 0 0 1 45.248 0L376.32 331.008a32 32 0 0 1-45.248 45.248L195.2 240.448a32 32 0 0 1 0-45.248m452.544 452.544a32 32 0 0 1 45.248 0L828.8 783.552a32 32 0 0 1-45.248 45.248L647.744 692.992a32 32 0 0 1 0-45.248M828.8 195.264a32 32 0 0 1 0 45.184L692.992 376.32a32 32 0 0 1-45.248-45.248l135.808-135.808a32 32 0 0 1 45.248 0m-452.544 452.48a32 32 0 0 1 0 45.248L240.448 828.8a32 32 0 0 1-45.248-45.248l135.808-135.808a32 32 0 0 1 45.248 0"
+                                    />
                                 </svg>
-                                {new Date(
-                                    apods[currentIndex - 1].date,
-                                ).toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                })}
-                            </button>
-                        {:else}
-                            <button
-                                class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center justify-center disabled:text-neutral-400"
-                                disabled={currentIndex === 0}
-                            >
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="20"
-                                    height="20"
-                                    class="-ml-2"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <g fill="none" fill-rule="evenodd">
-                                        <path
-                                            d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
-                                        />
-                                        <path
-                                            fill="currentColor"
-                                            d="M8.293 12.707a1 1 0 0 1 0-1.414l5.657-5.657a1 1 0 1 1 1.414 1.414L10.414 12l4.95 4.95a1 1 0 0 1-1.414 1.414z"
-                                        />
-                                    </g>
-                                </svg>
-                                Tomorrow
-                            </button>
-                        {/if}
-                    </div>
+                            {/if}
+                        </div>
 
-                    <div class="flex justify-center items-center">
-                        {#if loadingMore}
-                            <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="1.3em"
-                                height="1.3em"
-                                class="animate-spin text-neutral-300"
-                                viewBox="0 0 1024 1024"
-                                ><rect
-                                    width="1024"
-                                    height="1024"
-                                    fill="none"
-                                /><path
-                                    fill="currentColor"
-                                    d="M512 64a32 32 0 0 1 32 32v192a32 32 0 0 1-64 0V96a32 32 0 0 1 32-32m0 640a32 32 0 0 1 32 32v192a32 32 0 1 1-64 0V736a32 32 0 0 1 32-32m448-192a32 32 0 0 1-32 32H736a32 32 0 1 1 0-64h192a32 32 0 0 1 32 32m-640 0a32 32 0 0 1-32 32H96a32 32 0 0 1 0-64h192a32 32 0 0 1 32 32M195.2 195.2a32 32 0 0 1 45.248 0L376.32 331.008a32 32 0 0 1-45.248 45.248L195.2 240.448a32 32 0 0 1 0-45.248m452.544 452.544a32 32 0 0 1 45.248 0L828.8 783.552a32 32 0 0 1-45.248 45.248L647.744 692.992a32 32 0 0 1 0-45.248M828.8 195.264a32 32 0 0 1 0 45.184L692.992 376.32a32 32 0 0 1-45.248-45.248l135.808-135.808a32 32 0 0 1 45.248 0m-452.544 452.48a32 32 0 0 1 0 45.248L240.448 828.8a32 32 0 0 1-45.248-45.248l135.808-135.808a32 32 0 0 1 45.248 0"
-                                />
-                            </svg>
-                        {/if}
-                    </div>
-
-                    <div class="justify-end flex items-center">
-                        {#if apods[currentIndex + 1]}
-                            <button
-                                class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center"
-                                disabled={currentIndex === apods.length - 1}
-                                onclick={goNext}
-                            >
-                                {new Date(
-                                    apods[currentIndex + 1].date,
-                                ).toLocaleDateString("en-US", {
-                                    month: "short",
-                                    day: "numeric",
-                                })}
-                                <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="20"
-                                    height="20"
-                                    class="-mr-2"
-                                    viewBox="0 0 24 24"
+                        <div class="justify-end flex items-center">
+                            {#if apods[currentIndex + 1]}
+                                <button
+                                    class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl text-sm flex items-center"
+                                    disabled={currentIndex === apods.length - 1}
+                                    onclick={goNext}
                                 >
-                                    <g fill="none" fill-rule="evenodd">
-                                        <path
-                                            d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
-                                        />
-                                        <path
-                                            fill="currentColor"
-                                            d="M15.707 11.293a1 1 0 0 1 0 1.414l-5.657 5.657a1 1 0 1 1-1.414-1.414l4.95-4.95l-4.95-4.95a1 1 0 0 1 1.414-1.414z"
-                                        />
-                                    </g>
-                                </svg>
-                            </button>
-                        {/if}
+                                    {new Date(
+                                        apods[currentIndex + 1].date,
+                                    ).toLocaleDateString("en-US", {
+                                        month: "short",
+                                        day: "numeric",
+                                    })}
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="20"
+                                        height="20"
+                                        class="-mr-2"
+                                        viewBox="0 0 24 24"
+                                    >
+                                        <g fill="none" fill-rule="evenodd">
+                                            <path
+                                                d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"
+                                            />
+                                            <path
+                                                fill="currentColor"
+                                                d="M15.707 11.293a1 1 0 0 1 0 1.414l-5.657 5.657a1 1 0 1 1-1.414-1.414l4.95-4.95l-4.95-4.95a1 1 0 0 1 1.414-1.414z"
+                                            />
+                                        </g>
+                                    </svg>
+                                </button>
+                            {/if}
+                        </div>
                     </div>
-                </div>
+                {/if}
             </section>
 
             <!-- Desktop Section -->

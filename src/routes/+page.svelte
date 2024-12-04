@@ -10,8 +10,9 @@
     import { fetchAPOD } from "$lib/apod.ts";
 
     // Configuration
-    const initialDays = 10;
+    const initialDays = 15;
     const incrementDays = 20;
+    const loadMoreThreshold = 10; // How many items before end to trigger load
 
     // Is the page loading variable
     let loading = $state(true);
@@ -42,6 +43,12 @@
     let open = $state(false);
     let image = $state("");
 
+    function updateURL(date) {
+        const url = new URL(window.location.href);
+        url.searchParams.set("date", date);
+        window.history.replaceState({}, "", url);
+    }
+
     // Toggle zoom lens effect for desktop
     async function toggleLensEffect() {
         if (apods.length == 1 && loadingMore == true) {
@@ -66,43 +73,100 @@
         return "/assets/images/vid_thumb.webp";
     }
 
+    async function loadSpecificDate(dateStr) {
+        loading = true;
+        try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) {
+                error.error = true;
+                error.msg = "Invalid APOD date format. Try MM-DD-YYYY";
+                throw new Error("Invalid date format");
+            }
+            const apod = await fetchAPOD(date);
+
+            if (apod) {
+                apods = [apod];
+                currentIndex = 0;
+            } else {
+                error.error = true;
+                error.msg =
+                    "Failed to fetch APOD data! if you entered a valid date, please try again later.";
+            }
+        } catch (e) {
+            error.error = true;
+            error.msg =
+                e instanceof Error ? e.message : "An unknown error occurred";
+            apods = [];
+        } finally {
+            loading = false;
+        }
+    }
+
     // Load another batch of images
     async function loadMoreApods() {
-        if (loadingMore) return;
+        if (loadingMore) return; // Prevent multiple simultaneous loads
 
         loadingMore = true;
 
-        const oldestDate = new Date(apods[apods.length - 1].date);
+        try {
+            // Find oldest date in batch by comparing all dates
+            const oldestDate = new Date(
+                Math.min(...apods.map((apod) => new Date(apod.date))),
+            );
 
-        const endDate = new Date(oldestDate);
-        endDate.setDate(endDate.getDate() - 1);
+            const endDate = new Date(oldestDate);
+            endDate.setDate(endDate.getDate() - 1);
 
-        const startDate = new Date(oldestDate);
-        startDate.setDate(startDate.getDate() - incrementDays);
+            const startDate = new Date(oldestDate);
+            startDate.setDate(startDate.getDate() - incrementDays);
 
-        const newApods = await fetchAPOD(startDate, endDate);
-        apods = [...apods, ...newApods];
-        if (apods.length > 0) {
-            localStorage.setItem("latestApod", JSON.stringify(apods[0]));
+            const newApods = await fetchAPOD(startDate, endDate);
+
+            // Force reactivity by creating a new array
+            apods = [...apods];
+            apods.push(...newApods);
+
+            if (apods.length > 0) {
+                localStorage.setItem("latestApod", JSON.stringify(apods[0]));
+            }
+
+            // Force swiper to update
+            const swiperEl = document.querySelector("swiper-container");
+            if (swiperEl) {
+                setTimeout(() => {
+                    swiperEl.swiper.update();
+                }, 0);
+            }
+        } catch (e) {
+            console.error("Error loading more APODs:", e);
+        } finally {
+            loadingMore = false;
         }
-
-        loadingMore = false;
     }
 
     // Navigation functions (For Mobile)
     async function goNext() {
         if (currentIndex < apods.length - 1) {
             currentIndex++;
+            updateURL(apods[currentIndex].date);
         }
 
-        if (currentIndex >= apods.length - 10) {
-            loadMoreApods();
+        if (currentIndex >= apods.length - loadMoreThreshold) {
+            await loadMoreApods();
         }
     }
 
     function goPrev() {
         if (currentIndex > 0) {
             currentIndex--;
+            updateURL(apods[currentIndex].date);
+        }
+    }
+
+    // Check if we need to load more APODs
+    async function checkLoadMore() {
+        if (currentIndex >= apods.length - loadMoreThreshold && !loadingMore) {
+            await loadMoreApods();
         }
     }
 
@@ -110,30 +174,39 @@
         loading = true;
         loadingMore = true;
 
-        // Check for cached data
-        const cached = localStorage.getItem("latestApod");
-        if (cached) {
-            apods = [JSON.parse(cached)];
-            loading = false;
-        }
+        const urlParams = new URLSearchParams(window.location.search);
+        const dateParam = urlParams.get("date");
 
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - initialDays);
+        if (dateParam) {
+            await loadSpecificDate(dateParam);
+        } else {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(startDate.getDate() - initialDays);
 
-        try {
-            const freshApods = await fetchAPOD(startDate, endDate);
-            apods = freshApods;
-            if (freshApods.length > 0) {
-                localStorage.setItem(
-                    "latestApod",
-                    JSON.stringify(freshApods[0]),
-                );
+            try {
+                // Check for cached data while fetching fresh data
+                const cached = localStorage.getItem("latestApod");
+                if (cached) {
+                    apods = [JSON.parse(cached)];
+                    loading = false;
+                }
+
+                const freshApods = await fetchAPOD(startDate, endDate);
+                apods = freshApods;
+                if (freshApods.length > 0) {
+                    localStorage.setItem(
+                        "latestApod",
+                        JSON.stringify(freshApods[0]),
+                    );
+                }
+            } catch (e) {
+                error.error = true;
+                error.msg =
+                    e instanceof Error
+                        ? e.message
+                        : "An unknown error occurred";
             }
-        } catch (e) {
-            error.error = true;
-            error.msg =
-                e instanceof Error ? e.message : "An unknown error occurred";
         }
 
         loading = false;
@@ -146,16 +219,14 @@
         register();
 
         // Setup swiper and tooltips
-        setTimeout(() => {
+        setTimeout(async () => {
             const swiperEl = document.querySelector("swiper-container");
             if (swiperEl) {
-                swiperEl.addEventListener("swiperslidechange", (e) => {
+                swiperEl.addEventListener("swiperslidechange", async (e) => {
                     currentIndex =
                         /** @type {any} */ (e)?.detail?.[0]?.activeIndex ?? 0;
-
-                    if (currentIndex >= apods.length - 10) {
-                        loadMoreApods();
-                    }
+                    updateURL(apods[currentIndex].date);
+                    await checkLoadMore();
                 });
             }
             tippy("[data-tippy-content]");
@@ -201,9 +272,11 @@
 <div
     class="top-0 left-0 static xl:fixed flex justify-center items-center flex-col text-center w-full pt-6 xl:pt-8 pb-4 mxl:pb-0 z-30"
 >
-    <h1 class="doto xl:text-xl text-lg font-semibold mx-4 drop-shadow-lg">
-        🪐 Astronomy Picture Of The Day
-    </h1>
+    <a href="/" title="APOD" target="_self">
+        <h1 class="doto xl:text-xl text-lg font-semibold mx-4 drop-shadow-lg">
+            🪐 Astronomy Picture Of The Day
+        </h1></a
+    >
     {#if apods?.length && apods[currentIndex].date}
         <p class="doto drop-shadow-lg">
             - {new Date(apods[currentIndex].date).toLocaleDateString("en-US", {

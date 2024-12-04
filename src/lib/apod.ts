@@ -11,6 +11,7 @@ interface APODProps {
   media_type: string;
   date: string;
   link: string;
+  error?: boolean;
 }
 
 // Cache manager class
@@ -138,6 +139,8 @@ async function parseAPODPage(
     .join("-");
 
   props.link = `https://apod.nasa.gov/apod/ap${formatDate(new Date(props.date))}.html`;
+
+  props.error = !title || !explanation || !mediaUrl;
 
   return props;
 }
@@ -274,10 +277,7 @@ export async function fetchAPOD(
 
       // Check cache first
       if (cache.has(formattedDate)) {
-        const cachedValue = cache.get(formattedDate);
-        if (cachedValue) {
-          return cachedValue;
-        }
+        return cache.get(formattedDate) || null;
       }
 
       let url = formattedDate

@@ -262,20 +262,36 @@ function extractCredits(doc: Document): {
 
 // Fetch APOD data
 export async function fetchAPOD(
-  startDate: string | Date,
+  startDate?: string | Date,
   endDate: string | Date | null = null,
-  useDefaultDate = false,
 ): Promise<APODProps | APODProps[] | null> {
   try {
+    // Function to get Michigan time
+    const getMichiganTime = () => {
+      return new Date(
+        new Date().toLocaleString("en-US", { timeZone: "America/Detroit" }),
+      );
+    };
+
     if (!endDate) {
       // Single date fetch
       let date = startDate
         ? new Date(startDate.toString().replace(/-/g, "/"))
-        : new Date();
-      let formattedDate = formatDate(date);
+        : getMichiganTime();
+
+      // If fetching latest and Michigan time is still on previous day, roll back one day
+      if (!startDate) {
+        const michiganDate = getMichiganTime();
+        if (michiganDate.getHours() < 5) {
+          // If before 5 AM Michigan time
+          date.setDate(date.getDate() - 1);
+        }
+      }
+
+      let formattedDate = startDate ? formatDate(date) : null;
 
       // Check cache first
-      if (cache.has(formattedDate)) {
+      if (formattedDate && cache.has(formattedDate)) {
         return cache.get(formattedDate) || null;
       }
 
@@ -284,22 +300,15 @@ export async function fetchAPOD(
         : `${urlBase}astropix.html`;
 
       let result = await parseAPODPage(url, date);
-      if (!result && useDefaultDate) {
-        const prevDate = new Date(date);
-        prevDate.setDate(prevDate.getDate() - 1);
-        formattedDate = formatDate(prevDate);
-        url = `${urlBase}ap${formattedDate}.html`;
-        result = await parseAPODPage(url, prevDate);
-      }
 
       if (result) {
-        cache.set(formattedDate, result);
+        cache.set(formattedDate || "", result);
       }
       return result;
     }
 
     // Date range fetch
-    const start = new Date(startDate.toString().replace(/-/g, "/"));
+    const start = new Date(startDate!.toString().replace(/-/g, "/"));
     const end = new Date(endDate.toString().replace(/-/g, "/"));
     const dates = [];
     let currentDate = start;
@@ -327,15 +336,19 @@ export async function fetchAPOD(
         const result = await parseAPODPage(url, date);
         if (result) {
           cache.set(formattedDate, result);
+          return result;
         }
-        return result;
+        return null;
       });
 
-      const chunkResults = await Promise.all(promises);
+      const chunkResults = await Promise.allSettled(promises);
       results.push(
-        ...chunkResults.filter(
-          (result): result is APODProps => result !== null,
-        ),
+        ...chunkResults
+          .filter(
+            (result): result is PromiseFulfilledResult<APODProps | null> =>
+              result.status === "fulfilled" && result.value !== null,
+          )
+          .map((result) => result.value as APODProps),
       );
     }
 

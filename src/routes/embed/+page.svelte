@@ -41,7 +41,7 @@
                 const result = await fetchAPOD(date);
                 apod = result || {};
             } else {
-                const result = await fetchAPOD(new Date());
+                const result = await fetchAPOD();
                 apod = result || {};
             }
 

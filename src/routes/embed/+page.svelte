@@ -59,7 +59,7 @@
 
     function handleClick() {
         if (typeof apod === "object" && "date" in apod) {
-            window.location.href = `https://apod.akatgx.link?date=${apod.date}`;
+            window.open(`https://apod.akatgx.link?date=${apod.date}`, "_blank");
         }
     }
 </script>
@@ -94,7 +94,7 @@
             <img
                 src={String(apod?.url)}
                 alt={String(apod?.title)}
-                class="w-screen h-screen object-cover"
+                class="w-screen h-screen object-cover object-center"
             />
         {:else if "media_type" in apod && "url" in apod && apod.media_type === "video"}
             <div

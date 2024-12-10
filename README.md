@@ -48,8 +48,9 @@ The parser is located at `src/lib/apod.ts` and exposes the following function:
 import { fetchAPOD } from "apod";
 
 interface APODOptions {
-  startDate: string | Date | null;      // Optional start date to fetch from (by default returns the latest apod)
+  startDate?: string | Date | null;      // Optional start date to fetch from (by default returns the latest apod)
   endDate?: string | Date | null;       // Optional end date (defaults to start date)
+  preserveLinks?: boolean = true;       // Optional preserve links in explanations (defaults to true)
 }
 
 const apod = await fetchAPOD(options);

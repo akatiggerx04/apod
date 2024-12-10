@@ -46,6 +46,9 @@
     let open = $state(false);
     let image = $state("");
 
+    // Is viewing a single APOD
+    let isSingleView = $state(false);
+
     /** @type {function(string): void} */
     function updateURL(date) {
         const url = new URL(window.location.href);
@@ -77,6 +80,38 @@
         return "/assets/images/vid_thumb.webp";
     }
 
+    async function loadRandomApod() {
+        loading = true;
+        try {
+            const startDate = new Date("1995/07/20");
+            const endDate = new Date();
+            endDate.setDate(endDate.getDate() - 7);
+
+            const timeDiff = endDate.getTime() - startDate.getTime();
+            const randomTime = Math.random() * timeDiff;
+            const randomDate = new Date(startDate.getTime() + randomTime);
+
+            const apod = await fetchAPOD(randomDate);
+            if (apod) {
+                apods = [apod];
+                currentIndex = 0;
+                isSingleView = true;
+                updateURL(Array.isArray(apod) ? apod[0].date : apod.date);
+            } else {
+                error.error = true;
+                error.msg =
+                    "Failed to fetch random APOD data! Please try again later.";
+            }
+        } catch (e) {
+            error.error = true;
+            error.msg =
+                e instanceof Error ? e.message : "An unknown error occurred";
+            apods = [];
+        } finally {
+            loading = false;
+        }
+    }
+
     async function loadSpecificDate(/** @type {string} */ dateStr) {
         loading = true;
         try {
@@ -92,6 +127,7 @@
             if (apod) {
                 apods = [apod];
                 currentIndex = 0;
+                isSingleView = true;
             } else {
                 error.error = true;
                 error.msg =
@@ -208,6 +244,7 @@
 
                 const freshApods = (await fetchAPOD(startDate, endDate)) || [];
                 apods = Array.isArray(freshApods) ? freshApods : [freshApods];
+                isSingleView = apods.length === 1;
                 if (apods.length > 0) {
                     localStorage.setItem(
                         "latestApod",
@@ -258,11 +295,7 @@
 </script>
 
 <svelte:head>
-    <title>
-        Astronomy Picture of The Day{apods[currentIndex]
-            ? ": " + apods[currentIndex].title
-            : ""}
-    </title>
+    <title>Astronomy Picture of The Day</title>
     <meta
         name="description"
         content="An unofficial client for the Astronomy Picture of The Day (APOD) by NASA. Everyday a space/science related picture is featured, accompanied by an explanation."
@@ -298,19 +331,30 @@
     <a href="/" title="APOD" target="_self">
         <h1 class="doto xl:text-xl text-lg font-semibold mx-4 drop-shadow-lg">
             🪐 Astronomy Picture Of The Day
-        </h1></a
-    >
-    {#if apods?.length && apods[currentIndex].date}
-        <p class="doto drop-shadow-lg">
-            - {new Date(
-                apods[currentIndex].date.replace(/-/g, "/"),
-            ).toLocaleDateString("en-US", {
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-            })} -
-        </p>
-    {/if}
+        </h1>
+        {#if isSingleView && apods?.length && apods[currentIndex].date}
+            <p class="doto drop-shadow-lg">
+                Click To Return to Home<br class="block xl:hidden" />
+                ({new Date(
+                    apods[currentIndex].date.replace(/-/g, "/"),
+                ).toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                })})
+            </p>
+        {:else if apods?.length && apods[currentIndex].date}
+            <p class="doto drop-shadow-lg">
+                - {new Date(
+                    apods[currentIndex].date.replace(/-/g, "/"),
+                ).toLocaleDateString("en-US", {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                })} -
+            </p>
+        {/if}
+    </a>
 </div>
 <!-- End Page Title -->
 
@@ -328,12 +372,15 @@
 <!-- End Background Image -->
 
 {#if loading && error.error == false}
-    <section class="flex justify-center items-center flex-col h-screen w-full">
+    <section
+        transition:fade
+        class="fixed top-0 left-0 flex justify-center items-center flex-col h-screen w-full"
+    >
         <svg
             xmlns="http://www.w3.org/2000/svg"
             width="2em"
             height="2em"
-            class="animate-spin text-neutral-300"
+            class="animate-spin text-neutral-300 drop-shadow-xl"
             viewBox="0 0 1024 1024"
             ><rect width="1024" height="1024" fill="none" /><path
                 fill="currentColor"
@@ -618,12 +665,21 @@
                         >
                             {#if apod.media_type == "image"}
                                 <Lens bind:lensEffect>
-                                    <img
-                                        src={apod.url}
-                                        loading="lazy"
-                                        alt="APOD"
-                                        class="w-full h-full object-cover bg-black"
-                                    />
+                                    {#await new Promise((r) => {
+                                        const img = new Image();
+                                        img.onload = () => r(true);
+                                        img.src = apod.url;
+                                    })}
+                                        <p class="sr-only">Loading image...</p>
+                                    {:then}
+                                        <img
+                                            transition:fade
+                                            src={apod.url}
+                                            loading="lazy"
+                                            alt="APOD"
+                                            class="w-full h-full object-cover bg-black"
+                                        />
+                                    {/await}
                                 </Lens>
                             {:else if apod.media_type == "video"}
                                 <div
@@ -683,8 +739,8 @@
                     </p>
                 {/if}
 
-                <p class="xl:max-h-[60vh] xl:overflow-y-auto">
-                    {apods[currentIndex]?.explanation}
+                <p class="xl:max-h-[60vh] xl:overflow-y-auto apod-explanation">
+                    {@html apods[currentIndex]?.explanation}
                 </p>
                 {#if apods[currentIndex]?.copyright}
                     <p class="mt-2 text-neutral-300">
@@ -708,7 +764,7 @@
         class:pointer-events-none={isAtBottom}
     >
         <div
-            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl grid grid-cols-3 xl:grid-cols-4 items-center justify-center gap-2"
+            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl grid grid-cols-4 xl:grid-cols-5 items-center justify-center gap-2"
         >
             <button
                 data-tippy-content="Preview in HD"
@@ -791,6 +847,31 @@
             </button>
 
             <button
+                data-tippy-content="Random APOD"
+                class="w-full justify-center items-center"
+                onclick={loadRandomApod}
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="1.35em"
+                    height="1.35em"
+                    viewBox="0 0 24 24"
+                    class=" text-neutral-400 hover:text-white duration-300"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                    <path d="M16 8h.01" />
+                    <path d="M12 12h.01" />
+                    <path d="M8 16h.01" />
+                </svg>
+                <span class="sr-only">Random APOD</span>
+            </button>
+
+            <button
                 data-tippy-content="About"
                 onclick={() => {
                     viewAbout = !viewAbout;
@@ -828,3 +909,9 @@
 {/if}
 
 <ImagePreview bind:open bind:image />
+
+<style>
+    :global(.apod-explanation a) {
+        text-decoration: underline !important;
+    }
+</style>

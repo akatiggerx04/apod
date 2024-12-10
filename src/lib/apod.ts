@@ -79,6 +79,7 @@ function formatDate(dt: Date): string {
 async function parseAPODPage(
   url: string,
   date: Date,
+  preserveLinks: boolean = false,
 ): Promise<APODProps | null> {
   const response = await fetch(`${corsProxy}${url}`);
   if (response.status === 404) return null;
@@ -118,7 +119,7 @@ async function parseAPODPage(
   }
 
   const title = extractTitle(doc);
-  const explanation = extractExplanation(doc);
+  const explanation = extractExplanation(doc, preserveLinks);
   const { credits, copyright } = extractCredits(doc);
 
   if (mediaUrl) props.url = mediaUrl;
@@ -156,7 +157,10 @@ function extractTitle(doc: Document): string {
 }
 
 // Extract the explanation text
-function extractExplanation(doc: Document): string {
+function extractExplanation(
+  doc: Document,
+  preserveLinks: boolean = false,
+): string {
   const explanationHeader = Array.from(doc.querySelectorAll("b")).find(
     (el) => el.textContent?.trim().toLowerCase() === "explanation:",
   );
@@ -170,11 +174,24 @@ function extractExplanation(doc: Document): string {
     currentNode &&
     !currentNode.textContent?.includes("Tomorrow's picture")
   ) {
-    if (
-      currentNode.nodeType === Node.TEXT_NODE ||
-      currentNode.nodeType === Node.ELEMENT_NODE
-    ) {
+    if (currentNode.nodeType === Node.TEXT_NODE) {
       explanation += currentNode.textContent || "";
+    } else if (currentNode.nodeType === Node.ELEMENT_NODE) {
+      const element = currentNode as Element;
+      if (preserveLinks && element.tagName === "A") {
+        const href = element.getAttribute("href");
+        if (href) {
+          const fullHref = href.startsWith("http") ? href : urlBase + href;
+          const newElement = element.cloneNode(true) as Element;
+          newElement.setAttribute("href", fullHref);
+          newElement.setAttribute("target", "_blank");
+          explanation += newElement.outerHTML;
+        } else {
+          explanation += element.textContent || "";
+        }
+      } else {
+        explanation += element.textContent || "";
+      }
     }
     currentNode = currentNode.nextSibling;
   }
@@ -264,6 +281,7 @@ function extractCredits(doc: Document): {
 export async function fetchAPOD(
   startDate?: string | Date,
   endDate: string | Date | null = null,
+  preserveLinks: boolean = true,
 ): Promise<APODProps | APODProps[] | null> {
   try {
     // Function to get Michigan time
@@ -299,7 +317,7 @@ export async function fetchAPOD(
         ? `${urlBase}ap${formattedDate}.html`
         : `${urlBase}astropix.html`;
 
-      let result = await parseAPODPage(url, date);
+      let result = await parseAPODPage(url, date, preserveLinks);
 
       if (result) {
         cache.set(formattedDate || "", result);
@@ -333,7 +351,7 @@ export async function fetchAPOD(
         }
 
         const url = `${urlBase}ap${formattedDate}.html`;
-        const result = await parseAPODPage(url, date);
+        const result = await parseAPODPage(url, date, preserveLinks);
         if (result) {
           cache.set(formattedDate, result);
           return result;

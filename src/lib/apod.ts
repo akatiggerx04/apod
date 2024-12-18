@@ -300,8 +300,8 @@ export async function fetchAPOD(
       // If fetching latest and Michigan time is still on previous day, roll back one day
       if (!startDate) {
         const michiganDate = getMichiganTime();
-        if (michiganDate.getHours() < 5) {
-          // If before 5 AM Michigan time
+        if (michiganDate.getHours() < 0) {
+          // If before 12 AM Michigan time
           date.setDate(date.getDate() - 1);
         }
       }

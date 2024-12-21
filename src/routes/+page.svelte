@@ -83,7 +83,7 @@
     async function loadRandomApod() {
         loading = true;
         try {
-            const startDate = new Date("1995/07/20");
+            const startDate = new Date("2000/01/01"); // Skip 1995-1999 since layout is inconsistent and parsing has problems
             const endDate = new Date();
             endDate.setDate(endDate.getDate() - 7);
 

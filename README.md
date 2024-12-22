@@ -2,6 +2,10 @@
 
 An alternative interface for NASA's Astronomy Picture of the Day (APOD), providing an alternative interface to explore the daily astronomical images and explanations from APOD. This project builds upon the amazing work of [Robert Nemiroff](http://www.phy.mtu.edu/faculty/Nemiroff.html) and [Jerry Bonnell](https://apod.nasa.gov/htmltest/jbonnell/www/bonnell.html) who created and maintain the original APOD website [(apod.nasa.gov)](https://apod.nasa.gov). All content and credit goes to the original APOD service and its contributors.
 
+## Today's APOD
+
+<img src="https://apod.nasa.gov/apod/calendar/today.jpg" alt="APOD" width="100%" style="border-radius: 10px;">
+
 ## Embedding APOD
 
 You can embed the Astronomy Picture of the Day (APOD) in your website in two ways:

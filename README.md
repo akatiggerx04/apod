@@ -4,7 +4,7 @@ An alternative interface for NASA's Astronomy Picture of the Day (APOD), providi
 
 ## Today's APOD
 
-<img src="https://apod.nasa.gov/apod/calendar/today.jpg" alt="APOD" width="100%" style="border-radius: 10px;">
+[![APOD](https://apod.nasa.gov/apod/calendar/today.jpg)](https://apod.akatgx.link)
 
 ## Embedding APOD
 

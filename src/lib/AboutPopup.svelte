@@ -1,8 +1,11 @@
 <script>
+  import { scale } from "svelte/transition";
+
     let { viewAbout = $bindable() } = $props();
 </script>
 
 <section
+    transition:scale
     class="p-3 bg-black/70 backdrop-blur-xl rounded-xl min-w-[30vw] xl:max-w-[650px] mx-8 drop-shadow-xl"
 >
     <div class="flex justify-between items-center gap-2">

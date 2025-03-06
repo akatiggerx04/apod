@@ -27,6 +27,7 @@
 		"@tailwindcss/aspect-ratio": "^0.4.2",
 		"clsx": "^2.1.1",
 		"fs": "^0.0.1-security",
+		"marked": "^15.0.7",
 		"swiper": "^11.1.14",
 		"tailwind-merge": "^2.5.5",
 		"tippy.js": "^6.3.7"

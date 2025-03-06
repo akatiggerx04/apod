@@ -7,6 +7,7 @@
     import ImagePreview from "$lib/ImagePreview.svelte";
     import AboutPopup from "$lib/AboutPopup.svelte";
     import Lens from "$lib/Lens.svelte";
+    import ChatOverlay from "$lib/ChatOverlay.svelte";
     import { fetchAPOD } from "$lib/apod.ts";
 
     // Configuration
@@ -38,6 +39,9 @@
 
     // About Popup
     let viewAbout = $state(false);
+
+    // Chat Overlay
+    let chatOpen = $state(false);
 
     // Hide actions on mobilw
     let isAtBottom = $state(false);
@@ -764,8 +768,34 @@
         class:pointer-events-none={isAtBottom}
     >
         <div
-            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl grid grid-cols-4 xl:grid-cols-5 items-center justify-center gap-2"
+            class="bg-white/10 backdrop-blur-xl px-4 py-2 rounded-xl grid grid-cols-5 xl:grid-cols-6 items-center justify-center gap-2"
         >
+            <button
+                data-tippy-content="Toggle Lens Effect"
+                class="w-full justify-center items-center hidden xl:flex"
+                onclick={toggleLensEffect}
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="1.45em"
+                    height="1.45em"
+                    viewBox="0 0 24 24"
+                    class="{lensEffect
+                        ? 'text-neutral-400 hover:text-white'
+                        : 'opacity-20'} duration-300"
+                >
+                    <path
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="2"
+                        d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0-14 0m18 11l-6-6"
+                    />
+                </svg>
+                <span class="sr-only">Toggle Lens Effect</span>
+            </button>
+
             <button
                 data-tippy-content="Preview in HD"
                 onclick={() => {
@@ -794,29 +824,23 @@
             </button>
 
             <button
-                data-tippy-content="Toggle Lens Effect"
-                class="w-full justify-center items-center hidden xl:flex"
-                onclick={toggleLensEffect}
+                data-tippy-content="Ask AI"
+                onclick={() => {
+                    chatOpen = !chatOpen;
+                }}
             >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    width="1.45em"
-                    height="1.45em"
+                    width="1.6em"
+                    height="1.6em"
                     viewBox="0 0 24 24"
-                    class="{lensEffect
-                        ? 'text-neutral-400 hover:text-white'
-                        : 'opacity-20'} duration-300"
-                >
-                    <path
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                        stroke-width="2"
-                        d="M3 10a7 7 0 1 0 14 0a7 7 0 1 0-14 0m18 11l-6-6"
+                    class="text-neutral-400 hover:text-white duration-300"
+                    ><path
+                        fill="currentColor"
+                        d="M21.97 9.47a1.07 1.07 0 0 1-.73 1.01l-1.88.62a4 4 0 0 0-2.53 2.54l-.65 1.87a1.1 1.1 0 0 1-.39.52a1.06 1.06 0 0 1-1.63-.54l-.63-1.88a3.9 3.9 0 0 0-1-1.56a4.06 4.06 0 0 0-1.57-1l-1.88-.63a1.05 1.05 0 0 1-.531-.38a1.08 1.08 0 0 1 0-1.25a1.05 1.05 0 0 1 .54-.39l1.87-.63a4 4 0 0 0 1.59-1c.45-.443.793-.984 1-1.58l.62-1.85a1 1 0 0 1 .36-.53a1 1 0 0 1 .62-.22a1.1 1.1 0 0 1 .63.18a1 1 0 0 1 .41.51l.63 1.91c.207.596.55 1.137 1 1.58a4 4 0 0 0 1.58 1l1.87.66a1 1 0 0 1 .52.38c.13.194.194.425.18.66M12.1 16.4a1 1 0 0 1-.18.57a1 1 0 0 1-.48.35l-1.35.45a2.6 2.6 0 0 0-1 .64a2.7 2.7 0 0 0-.64 1l-.47 1.34a1 1 0 0 1-.35.48a1 1 0 0 1-1.15 0a1 1 0 0 1-.35-.48l-.44-1.34a2.7 2.7 0 0 0-.641-1a2.7 2.7 0 0 0-1-.64l-1.35-.44a1 1 0 0 1-.48-.36a1 1 0 0 1-.19-.57a1 1 0 0 1 .68-.93l1.34-.44a2.78 2.78 0 0 0 1.64-1.64l.45-1.32a1 1 0 0 1 .33-.48a1 1 0 0 1 1.14-.05c.171.118.303.285.38.48l.45 1.37a2.78 2.78 0 0 0 1.64 1.64l1.34.47a.9.9 0 0 1 .47.35a.94.94 0 0 1 .21.55"
                     />
                 </svg>
-                <span class="sr-only">Toggle Lens Effect</span>
+                <span class="sr-only">Ask AI</span>
             </button>
 
             <button
@@ -909,6 +933,8 @@
 {/if}
 
 <ImagePreview bind:open bind:image />
+
+<ChatOverlay bind:open={chatOpen} apod={apods[currentIndex]} />
 
 <style>
     :global(.apod-explanation a) {
